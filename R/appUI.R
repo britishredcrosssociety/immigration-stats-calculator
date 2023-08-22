@@ -21,7 +21,7 @@ ui <- function() {
                  ".csv", ".xls", ".xlsx", ".ods")
     ),
 
-    uiOutput("results"),
+    uiOutput("results") |> withSpinner(color = "#ee2a24", size = 2),
 
     downloadButton("downloadData", "Download statistics in a spreadsheet")
   )

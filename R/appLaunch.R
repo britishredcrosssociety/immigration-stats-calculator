@@ -1,4 +1,5 @@
 library(shiny)
+library(shinycssloaders)
 library(dplyr)
 library(readr)
 library(tibble)

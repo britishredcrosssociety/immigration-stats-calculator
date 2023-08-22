@@ -21,6 +21,7 @@ Imports:
     readxl,
     scales,
     shiny,
+    shinycssloaders,
     stringr,
     tibble,
     tidyr
