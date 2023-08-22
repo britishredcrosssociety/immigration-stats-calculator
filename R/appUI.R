@@ -10,6 +10,8 @@ ui <- function() {
     ),
 
     uiOutput("instructions"),
+    p("3. Click the 'Browse...' button below and choose the file you just got from the Home Office website."),
+    p("4. The results will appear below; copy and paste them into your briefing document or click the 'Download statistics in a spreadsheet' if you want to save a copy to your computer."),
 
     fileInput(
       "file1", "Upload file from Home Office",
