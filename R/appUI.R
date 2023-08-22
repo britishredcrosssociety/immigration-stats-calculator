@@ -1,4 +1,4 @@
-ui <- function() (
+ui <- function() {
   fluidPage(
     titlePanel("Home Office immigration stats helper"),
 
@@ -21,4 +21,4 @@ ui <- function() (
 
     downloadButton("downloadData", "Calculate and download statistics")
   )
-)
+}
