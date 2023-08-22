@@ -19,6 +19,8 @@ ui <- function() {
                  ".csv", ".xls", ".xlsx", ".ods")
     ),
 
-    downloadButton("downloadData", "Calculate and download statistics")
+    uiOutput("results"),
+
+    downloadButton("downloadData", "Download statistics in a spreadsheet")
   )
 }

@@ -18,6 +18,20 @@ server <- function(input, output, session) {
     }
   })
 
+  output$results <- renderUI({
+    req(input$file1)
+
+    output_data <- NULL
+
+    if (input$topicChoice == "channel") {
+      output_data <- calc_irregular_migration()
+    }
+
+    lapply(1:ncol(output_data), function(i) {
+      p(paste(names(output_data)[i], output_data[,i], sep = ": "))
+    })
+  })
+
   # ---- Channel crossings stats ----
   calc_irregular_migration <- reactive({
     irregular_migration <-
@@ -60,8 +74,8 @@ server <- function(input, output, session) {
 
     channel_data <-
       tibble(
-        `Number of small boat arrivals in most recent quarter` = small_boat_arrivals_last_quarter,
-        `Number of small boat arrivals over last 12 months` = small_boat_arrivals_last_12_months,
+        `Number of small boat arrivals in most recent quarter` = scales::comma(small_boat_arrivals_last_quarter),
+        `Number of small boat arrivals over last 12 months` = scales::comma(small_boat_arrivals_last_12_months),
         `% change in number of people crossing - compared to previous year to date` = percent_change
       )
 
