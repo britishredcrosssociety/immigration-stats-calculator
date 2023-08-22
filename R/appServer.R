@@ -233,25 +233,25 @@ server <- function(input, output, session) {
   })
 
   # ---- Calculate and download statistics ----
-  output$downloadData <- downloadHandler(
-    filename = function() {
-      if (input$topicChoice == "channel") {
-        paste("channel-crossings", ".csv", sep = "")
-      } else if (input$topicChoice == "grants") {
-        paste("grants", ".csv", sep = "")
-      }
-    },
-
-    content = function(file) {
-
-      output_data <- NULL
-
-      if (input$topicChoice == "channel") {
-        output_data <- calc_irregular_migration()
-      }
-
-      write_csv(output_data, file)
-    }
-  )
+  # output$downloadData <- downloadHandler(
+  #   filename = function() {
+  #     if (input$topicChoice == "channel") {
+  #       paste("channel-crossings", ".csv", sep = "")
+  #     } else if (input$topicChoice == "grants") {
+  #       paste("grants", ".csv", sep = "")
+  #     }
+  #   },
+  #
+  #   content = function(file) {
+  #
+  #     output_data <- NULL
+  #
+  #     if (input$topicChoice == "channel") {
+  #       output_data <- calc_irregular_migration()
+  #     }
+  #
+  #     write_csv(output_data, file)
+  #   }
+  # )
 
 }
