@@ -49,8 +49,8 @@ server <- function(input, output, session) {
     # Wrangling
     irregular_migration <-
       irregular_migration |>
-      mutate(Date = yq(Quarter)) |>
-      # mutate(Date = as.Date(as.yearqtr(Quarter, format = "%Y Q%q"), frac = 1)) |>
+      # mutate(Date = yq(Quarter)) |>
+      mutate(Date = zoo::as.Date(as.yearqtr(Quarter, format = "%Y Q%q"), frac = 1)) |>
       mutate(Quarter = quarter(Date)) |>
       relocate(Date) |>
       drop_na()
@@ -81,11 +81,29 @@ server <- function(input, output, session) {
 
     percent_change <- scales::percent((small_boat_arrivals_last_12_months - small_boat_arrivals_year_before) / small_boat_arrivals_year_before, accuracy = 0.1)
 
+    # Calculate date ranges
+    date_recent_quarter <- max(irregular_migration$Date)
+    date_recent_quarter_txt <- date_formatter(date_recent_quarter)
+
+    date_prior_year <-
+      irregular_migration |>
+      filter((Date >= max(Date) - dmonths(22)) & (Date <= max(Date) - dmonths(11))) |>
+      distinct(Date)
+    date_prior_year_txt <- date_formatter(max(date_prior_year$Date))
+
+    # channel_data <-
+    #   tibble(
+    #     `Number of small boat arrivals in most recent quarter` = scales::comma(small_boat_arrivals_last_quarter),
+    #     `Number of small boat arrivals over last 12 months` = scales::comma(small_boat_arrivals_last_12_months),
+    #     `% change in number of people crossing - compared to previous year to date` = percent_change
+    #   )
+
     channel_data <-
-      tibble(
-        `Number of small boat arrivals in most recent quarter` = scales::comma(small_boat_arrivals_last_quarter),
-        `Number of small boat arrivals over last 12 months` = scales::comma(small_boat_arrivals_last_12_months),
-        `% change in number of people crossing - compared to previous year to date` = percent_change
+      div(
+        p("Number of small boat arrivals in most recent quarter, as of", date_recent_quarter_txt, ": ", scales::comma(small_boat_arrivals_last_quarter)),
+        p("Number of small boat arrivals over last 12 months (year ending", date_recent_quarter_txt, "): ", scales::comma(small_boat_arrivals_last_12_months)),
+        p("Number of small boat arrivals over the 12 months prior (year ending", date_prior_year_txt, "): ", scales::comma(small_boat_arrivals_year_before)),
+        p("% change in number of people crossing (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): ", percent_change)
       )
 
     return(channel_data)
