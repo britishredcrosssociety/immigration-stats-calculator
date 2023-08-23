@@ -22,6 +22,13 @@ server <- function(input, output, session) {
         p("1. Go to ", a(url, href = url)),
         p("2. In the 'Asylum applications, decisions and resettlement' section, click the 'Asylum applications, initial decisions and resettlement' link to download the most recent data.")
       )
+    } else if (input$topicChoice == "backlog") {
+      url <- "https://www.gov.uk/government/statistical-data-sets/asylum-and-resettlement-datasets#asylum-applications-decisions-and-resettlement"
+
+      div(
+        p("1. Go to ", a(url, href = url)),
+        p("2. In the 'Asylum applications, decisions and resettlement' section, click the 'Asylum applications awaiting a decision' link to download the most recent data.")
+      )
     }
   })
 
@@ -34,6 +41,8 @@ server <- function(input, output, session) {
       output_data <- calc_irregular_migration()
     } else if (input$topicChoice == "grants") {
       output_data <- calc_grant_rates()
+    } else if (input$topicChoice == "backlog") {
+      output_data <- calc_backlog()
     }
 
     # lapply(1:ncol(output_data), function(i) {
@@ -294,6 +303,75 @@ server <- function(input, output, session) {
       )
 
     # return(grants_data)
+    return(html_output)
+  })
+
+  # ---- Backlog stats ----
+  calc_backlog <- reactive({
+    awaiting_decision <-
+      read_excel(input$file1$datapath, sheet = "Data - Asy_D03", skip = 1)
+
+    # Wrangling
+    awaiting_decision <-
+      awaiting_decision |>
+      rename(Date = `Date (as at…)`) |>
+      filter(Date != "End of table") |>
+      mutate(Date = dmy(Date)) |>
+
+      mutate(
+        `Applicant type` = if_else(`Applicant type` == "Dependant", "Dependant", "Main applicant")
+      )
+
+    # Number of people waiting for an initial decision, as of current year-end
+    backlog_total <-
+      awaiting_decision |>
+      filter(Date == max(Date)) |>
+      summarise(Backlog = sum(Applications)) |>
+      pull(Backlog)
+
+    # % change in people waiting for initial decisions, quarter-on-quarter
+    backlog_change <-
+      awaiting_decision |>
+      filter(Date >= max(Date) - dmonths(3)) |>
+      group_by(Date) |>
+      summarise(Backlog = sum(Applications)) |>
+      ungroup() |>
+      mutate(delta = (Backlog - lag(Backlog)) / lag(Backlog)) |>
+      slice_tail(n = 1) |>
+      pull(delta)
+
+    # Top five nationalities waiting for an initial decision
+    backlog_nationality <-
+      awaiting_decision |>
+      filter(Date == max(Date)) |>
+      group_by(Nationality) |>
+      summarise(Backlog = sum(Applications)) |>
+      ungroup() |>
+      slice_max(Backlog, n = 5) |>
+      pull(Nationality)
+
+    backlog_nationality <- paste(backlog_nationality, collapse = ", ")
+
+    # Calculate date ranges
+    date_recent_quarter <- max(awaiting_decision$Date)
+    date_recent_quarter_txt <- date_formatter(date_recent_quarter)
+
+    date_previous_quarter <-
+      awaiting_decision |>
+      filter(Date >= max(Date) - dmonths(3)) |>
+      distinct(Date) |>
+      filter(Date == min(Date))
+
+    date_previous_quarter_txt <- date_formatter(date_previous_quarter$Date)
+
+    # Output results
+    html_output <-
+      div(
+        p("Number of people waiting for an initial decision, as of", date_recent_quarter_txt, ": ", scales::comma(backlog_total)),
+        p("Change in people waiting for initial decisions - from", date_previous_quarter_txt, "to", date_recent_quarter_txt, ": ", scales::percent(backlog_change, accuracy = 0.1)),
+        p("Top five nationalities waiting for initial decisions, as of", date_recent_quarter_txt, ": ", backlog_nationality)
+      )
+
     return(html_output)
   })
 

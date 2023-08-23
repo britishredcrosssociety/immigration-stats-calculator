@@ -5,12 +5,12 @@ ui <- function() {
     radioButtons(
       "topicChoice",
       "Select the topic you'd like to calculate statistics for",
-      choices = list("Channel crossings" = "channel", "Grant rates" = "grants"),
+      choices = list("Channel crossings" = "channel", "Grant rates" = "grants", "Asylum backlog" = "backlog"),
       selected = character(0)
     ),
 
     conditionalPanel(
-      condition = "['grants', 'channel'].includes(input.topicChoice)",
+      condition = "['grants', 'channel', 'backlog'].includes(input.topicChoice)",
 
       uiOutput("instructions"),
       p("3. Click the 'Browse...' button below and choose the file you just got from the Home Office website."),
