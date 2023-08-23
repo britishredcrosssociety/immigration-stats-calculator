@@ -8,6 +8,8 @@ server <- function(input, output, session) {
   #
 
   output$instructions <- renderUI({
+    if(is.null(input$topicChoice)) return(NULL)
+
     if (input$topicChoice == "channel") {
       div(
         p("1. Go to ", a("https://www.gov.uk/government/statistical-data-sets/irregular-migration-detailed-dataset-and-summary-tables", href = "https://www.gov.uk/government/statistical-data-sets/irregular-migration-detailed-dataset-and-summary-tables")),
