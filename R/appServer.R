@@ -81,6 +81,32 @@ server <- function(input, output, session) {
 
     percent_change <- scales::percent((small_boat_arrivals_last_12_months - small_boat_arrivals_year_before) / small_boat_arrivals_year_before, accuracy = 0.1)
 
+    # Top five nationalities crossing in recent quarter
+    nationalities_last_quarter <-
+      irregular_migration |>
+      filter(Date == max(Date)) |>
+      filter(`Method of entry` == "Small boat arrivals") |>
+      group_by(Nationality) |>
+      summarise(Detections = sum(`Number of detections`)) |>
+      ungroup() |>
+      slice_max(Detections, n = 5) |>
+      pull(Nationality)
+
+    nationalities_last_quarter <- paste(nationalities_last_quarter, collapse = ", ")
+
+    # Top five nationalities crossing in last 12 months
+    nationalities_last_year <-
+      irregular_migration |>
+      filter(Date >= max(Date) - dmonths(11)) |>
+      filter(`Method of entry` == "Small boat arrivals") |>
+      group_by(Nationality) |>
+      summarise(Detections = sum(`Number of detections`)) |>
+      ungroup() |>
+      slice_max(Detections, n = 5) |>
+      pull(Nationality)
+
+    nationalities_last_year <- paste(nationalities_last_year, collapse = ", ")
+
     # Calculate date ranges
     date_recent_quarter <- max(irregular_migration$Date)
     date_recent_quarter_txt <- date_formatter(date_recent_quarter)
@@ -103,7 +129,9 @@ server <- function(input, output, session) {
         p("Number of small boat arrivals in most recent quarter, as of", date_recent_quarter_txt, ": ", scales::comma(small_boat_arrivals_last_quarter)),
         p("Number of small boat arrivals over last 12 months (year ending", date_recent_quarter_txt, "): ", scales::comma(small_boat_arrivals_last_12_months)),
         p("Number of small boat arrivals over the 12 months prior (year ending", date_prior_year_txt, "): ", scales::comma(small_boat_arrivals_year_before)),
-        p("% change in number of people crossing (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): ", percent_change)
+        p("% change in number of people crossing (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): ", percent_change),
+        p("Top five nationalities arriving via small boats, as of", date_recent_quarter_txt, ": ", nationalities_last_quarter),
+        p("Top five nationalities arriving via small boats over the last 12 months (year ending", date_recent_quarter_txt, "): ", nationalities_last_year)
       )
 
     return(channel_data)
@@ -184,6 +212,38 @@ server <- function(input, output, session) {
 
     withdrawals_change <- (recent_year$Withdrawn - prior_year$Withdrawn) / prior_year$Withdrawn
 
+    # Top five nationalities receiving initial decisions (grants and refusals) in last year
+    nationalities_last_year <-
+      decisions_resettlement |>
+      filter(Date >= max(Date) - dmonths(11)) |>
+      filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+      mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
+      filter(`Case outcome group` %in% c("Grant", "Refused")) |>
+
+      group_by(Nationality) |>
+      summarise(Decisions = sum(Decisions)) |>
+      ungroup() |>
+      slice_max(Decisions, n = 5) |>
+      pull(Nationality)
+
+    nationalities_last_year <- paste(nationalities_last_year, collapse = ", ")
+
+    # Top five nationalities granted status in last year
+    nationalities_granted_last_year <-
+      decisions_resettlement |>
+      filter(Date >= max(Date) - dmonths(11)) |>
+      filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+      mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
+      filter(`Case outcome group` %in% c("Grant")) |>
+
+      group_by(Nationality) |>
+      summarise(Decisions = sum(Decisions)) |>
+      ungroup() |>
+      slice_max(Decisions, n = 5) |>
+      pull(Nationality)
+
+    nationalities_granted_last_year <- paste(nationalities_granted_last_year, collapse = ", ")
+
     # Calculate date ranges
     date_recent_quarter <- max(decisions_resettlement$Date)
     date_recent_quarter_txt <- date_formatter(date_recent_quarter)
@@ -224,7 +284,10 @@ server <- function(input, output, session) {
         p("Number of withdrawals over the last 12 months (year ending", date_recent_quarter_txt, "): ", scales::comma(recent_year$Withdrawn)),
         p("Number of withdrawals in the prior year (year ending", date_prior_year_txt, "): ", scales::comma(prior_year$Withdrawn)),
         p("Percentage change in withdrawals (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): ", scales::percent(withdrawals_change, accuracy = 0.1)),
-        p(""),
+        p(),
+        p("Top five nationalities receiving initial decisions (grants and refusals) over the last 12 months (year ending", date_recent_quarter_txt, "): ", nationalities_last_year),
+        p("Top five nationalities granted status over the last 12 months (year ending", date_recent_quarter_txt, "): ", nationalities_granted_last_year),
+        p(),
         p("Initial decisions referrs to grants and refusals for main applicants only; withdrawals do not count as decisions. Figures do not include resettlement.")
       )
 
