@@ -316,7 +316,8 @@ server <- function(input, output, session) {
     awaiting_decision <-
       awaiting_decision |>
       rename(Date = `Date (as at…)`) |>
-      filter(Date != "End of table") |>
+      # filter(Date != "End of table") |>
+      filter(toupper(Date) != "END OF TABLE") |>
       mutate(Date = dmy(Date)) |>
 
       mutate(
@@ -333,7 +334,7 @@ server <- function(input, output, session) {
     # % change in people waiting for initial decisions, quarter-on-quarter
     backlog_change <-
       awaiting_decision |>
-      filter(Date >= max(Date) - dmonths(3)) |>
+      filter(Date >= max(Date) - dmonths(4)) |>
       group_by(Date) |>
       summarise(Backlog = sum(Applications)) |>
       ungroup() |>
@@ -359,7 +360,7 @@ server <- function(input, output, session) {
 
     date_previous_quarter <-
       awaiting_decision |>
-      filter(Date >= max(Date) - dmonths(3)) |>
+      filter(Date >= max(Date) - dmonths(4)) |>
       distinct(Date) |>
       filter(Date == min(Date))
 
