@@ -40,16 +40,19 @@ server <- function(input, output, session) {
 
   output$results <- renderUI({
     # print(input$file1)
-    if (is.null(ho_file())) return(h2("4. Results will appear here"))
+    # if (is.null(ho_file())) return(h2("4. Results will appear here"))
 
     output_data <- NULL
 
     if (input$topicChoice == "channel") {
       output_data <- calc_irregular_migration()
+
     } else if (input$topicChoice == "grants") {
       output_data <- calc_grant_rates()
+
     } else if (input$topicChoice == "backlog") {
       output_data <- calc_backlog()
+
     }
 
     # lapply(1:ncol(output_data), function(i) {
@@ -63,8 +66,10 @@ server <- function(input, output, session) {
 
   # ---- Channel crossings stats ----
   calc_irregular_migration <- reactive({
+    data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/irregular-migration-detailed-dataset-and-summary-tables", "Detailed datasets")
+
     irregular_migration <-
-      read_excel(input$file1$datapath, sheet = "Data - Irr_D01", skip = 1)
+      read_excel(data_file, sheet = "Data - Irr_D01", skip = 1)
 
     # DEBUG:
     # irregular_migration <-
@@ -163,8 +168,10 @@ server <- function(input, output, session) {
 
   # ---- Grant rates stats ----
   calc_grant_rates <- reactive({
+    data_file <-  download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications, initial decisions and resettlement detailed datasets")
+
     decisions_resettlement <-
-      read_excel(input$file1$datapath, sheet = "Data - Asy_D02", skip = 1)
+      read_excel(data_file, sheet = "Data - Asy_D02", skip = 1)
 
     # Wrangling
     decisions_resettlement <-
@@ -321,8 +328,10 @@ server <- function(input, output, session) {
 
   # ---- Backlog stats ----
   calc_backlog <- reactive({
+    data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications awaiting a decision detailed datasets")
+
     awaiting_decision <-
-      read_excel(input$file1$datapath, sheet = "Data - Asy_D03", skip = 1)
+      read_excel(data_file, sheet = "Data - Asy_D03", skip = 1)
 
     # DEBUG:
     # awaiting_decision <-

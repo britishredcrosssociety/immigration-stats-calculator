@@ -9,6 +9,9 @@ library(scales)
 library(readxl)
 library(tidyr)
 library(zoo)
+library(httr2)
+library(rvest)
+library(xml2)
 
 appLaunch <- function() {
   shinyApp(ui, server)
