@@ -2,10 +2,15 @@ options(shiny.maxRequestSize=30*1024^2)
 
 server <- function(input, output, session) {
 
-  # observeEvent(input$topicChoice, {
-  #
-  # })
-  #
+  ho_file <- reactiveVal()
+
+  observeEvent(input$topicChoice, {
+    ho_file(NULL)
+  })
+
+  observeEvent(input$file1, {
+    ho_file(input$file1$datapath)
+  })
 
   output$instructions <- renderUI({
     if(is.null(input$topicChoice)) return(NULL)
@@ -35,7 +40,7 @@ server <- function(input, output, session) {
 
   output$results <- renderUI({
     # print(input$file1)
-    if (is.null(input$file1$datapath)) return(h2("4. Results will appear here"))
+    if (is.null(ho_file())) return(h2("4. Results will appear here"))
 
     output_data <- NULL
 
