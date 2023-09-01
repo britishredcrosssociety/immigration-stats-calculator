@@ -66,8 +66,9 @@ server <- function(input, output, session) {
     irregular_migration <-
       read_excel(input$file1$datapath, sheet = "Data - Irr_D01", skip = 1)
 
-    irregular_migration <-
-      read_excel("c:/users/040026704/Downloads/irregular-migration-to-the-UK-data-tables-year-ending-june-2023.xlsx", sheet = "Data - Irr_D01", skip = 1)
+    # DEBUG:
+    # irregular_migration <-
+    #   read_excel("c:/users/040026704/Downloads/irregular-migration-to-the-UK-data-tables-year-ending-june-2023.xlsx", sheet = "Data - Irr_D01", skip = 1)
 
     # Wrangling
     irregular_migration <-
@@ -78,10 +79,10 @@ server <- function(input, output, session) {
       relocate(Date) |>
       drop_na()
 
-    # Number of small boat arrivals in most recent quarter
-    small_boat_arrivals_last_quarter <-
+    # Number of small boat arrivals, year to date
+    small_boat_arrivals_ytd <-
       irregular_migration |>
-      filter(Date == max(Date)) |>
+      filter(Year == max(Year)) |>
       filter(`Method of entry` == "Small boat arrivals") |>
       summarise(Total = sum(`Number of detections`)) |>
       pull(Total)
@@ -104,10 +105,10 @@ server <- function(input, output, session) {
 
     percent_change <- scales::percent((small_boat_arrivals_last_12_months - small_boat_arrivals_year_before) / small_boat_arrivals_year_before, accuracy = 0.1)
 
-    # Top five nationalities crossing in recent quarter
+    # Top five nationalities crossing, year to date
     nationalities_last_quarter <-
       irregular_migration |>
-      filter(Date == max(Date)) |>
+      filter(Year == max(Year)) |>
       filter(`Method of entry` == "Small boat arrivals") |>
       group_by(Nationality) |>
       summarise(Detections = sum(`Number of detections`)) |>
@@ -142,18 +143,18 @@ server <- function(input, output, session) {
 
     # channel_data <-
     #   tibble(
-    #     `Number of small boat arrivals in most recent quarter` = scales::comma(small_boat_arrivals_last_quarter),
+    #     `Number of small boat arrivals in most recent quarter` = scales::comma(small_boat_arrivals_ytd),
     #     `Number of small boat arrivals over last 12 months` = scales::comma(small_boat_arrivals_last_12_months),
     #     `% change in number of people crossing - compared to previous year to date` = percent_change
     #   )
 
     channel_data <-
       div(
-        p("Number of small boat arrivals in most recent quarter, as of", date_recent_quarter_txt, ": ", scales::comma(small_boat_arrivals_last_quarter)),
+        p("Number of small boat arrivals, year to date:", scales::comma(small_boat_arrivals_ytd)),
         p("Number of small boat arrivals over last 12 months (year ending", date_recent_quarter_txt, "): ", scales::comma(small_boat_arrivals_last_12_months)),
         p("Number of small boat arrivals over the 12 months prior (year ending", date_prior_year_txt, "): ", scales::comma(small_boat_arrivals_year_before)),
         p("% change in number of people crossing (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): ", percent_change),
-        p("Top five nationalities arriving via small boats, as of", date_recent_quarter_txt, ": ", nationalities_last_quarter),
+        p("Top five nationalities arriving via small boats, year to date:", nationalities_last_quarter),
         p("Top five nationalities arriving via small boats over the last 12 months (year ending", date_recent_quarter_txt, "): ", nationalities_last_year)
       )
 
@@ -323,6 +324,7 @@ server <- function(input, output, session) {
     awaiting_decision <-
       read_excel(input$file1$datapath, sheet = "Data - Asy_D03", skip = 1)
 
+    # DEBUG:
     # awaiting_decision <-
     #   read_excel("C:\\Users/040026704/Downloads/asylum-applications-awaiting-decision-datasets-jun-2023.xlsx", sheet = "Data - Asy_D03", skip = 1)
 
