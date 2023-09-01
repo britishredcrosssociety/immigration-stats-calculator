@@ -18,11 +18,11 @@ server <- function(input, output, session) {
       second_instruction <- "2. Click the 'Detailed datasets' link to download the latest statistics."
 
     } else if (input$topicChoice == "grants") {
-      url <- "https://www.gov.uk/government/statistical-data-sets/asylum-and-resettlement-datasets#asylum-applications-decisions-and-resettlement"
+      url <- "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement"
       second_instruction <- "2. In the 'Asylum applications, decisions and resettlement' section, click the 'Asylum applications, initial decisions and resettlement' link to download the most recent data."
 
     } else if (input$topicChoice == "backlog") {
-      url <- "https://www.gov.uk/government/statistical-data-sets/asylum-and-resettlement-datasets#asylum-applications-decisions-and-resettlement"
+      url <- "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement"
       second_instruction <- "2. In the 'Asylum applications, decisions and resettlement' section, click the 'Asylum applications awaiting a decision' link to download the most recent data."
 
     }
@@ -34,7 +34,8 @@ server <- function(input, output, session) {
   })
 
   output$results <- renderUI({
-    req(input$file1)
+    # print(input$file1)
+    if (is.null(input$file1$datapath)) return(h2("4. Results will appear here"))
 
     output_data <- NULL
 
@@ -49,14 +50,19 @@ server <- function(input, output, session) {
     # lapply(1:ncol(output_data), function(i) {
     #   p(paste(names(output_data)[i], output_data[,i], sep = ": "))
     # })
-
-    output_data
+    div(
+      h2("4. Results"),
+      output_data
+    )
   })
 
   # ---- Channel crossings stats ----
   calc_irregular_migration <- reactive({
     irregular_migration <-
       read_excel(input$file1$datapath, sheet = "Data - Irr_D01", skip = 1)
+
+    irregular_migration <-
+      read_excel("c:/users/040026704/Downloads/irregular-migration-to-the-UK-data-tables-year-ending-june-2023.xlsx", sheet = "Data - Irr_D01", skip = 1)
 
     # Wrangling
     irregular_migration <-
@@ -312,10 +318,13 @@ server <- function(input, output, session) {
     awaiting_decision <-
       read_excel(input$file1$datapath, sheet = "Data - Asy_D03", skip = 1)
 
+    # awaiting_decision <-
+    #   read_excel("C:\\Users/040026704/Downloads/asylum-applications-awaiting-decision-datasets-jun-2023.xlsx", sheet = "Data - Asy_D03", skip = 1)
+
     # Wrangling
     awaiting_decision <-
       awaiting_decision |>
-      rename(Date = `Date (as at…)`) |>
+      rename_with(~"Date", starts_with("Date")) |>
       # filter(Date != "End of table") |>
       filter(toupper(Date) != "END OF TABLE") |>
       mutate(Date = dmy(Date)) |>
@@ -335,6 +344,18 @@ server <- function(input, output, session) {
     backlog_change <-
       awaiting_decision |>
       filter(Date >= max(Date) - dmonths(4)) |>
+      group_by(Date) |>
+      summarise(Backlog = sum(Applications)) |>
+      ungroup() |>
+      mutate(delta = (Backlog - lag(Backlog)) / lag(Backlog)) |>
+      slice_tail(n = 1) |>
+      pull(delta)
+
+    # % change in people waiting for initial decisions, compared to same period last year
+    backlog_change_year <-
+      awaiting_decision |>
+      filter(Date >= max(Date) - dmonths(13)) |>
+      filter(Date == min(Date) | Date == max(Date)) |>
       group_by(Date) |>
       summarise(Backlog = sum(Applications)) |>
       ungroup() |>
@@ -363,14 +384,21 @@ server <- function(input, output, session) {
       filter(Date >= max(Date) - dmonths(4)) |>
       distinct(Date) |>
       filter(Date == min(Date))
-
     date_previous_quarter_txt <- date_formatter(date_previous_quarter$Date)
+
+    date_previous_year <-
+      awaiting_decision |>
+      filter(Date >= max(Date) - dmonths(13)) |>
+      distinct(Date) |>
+      filter(Date == min(Date))
+    date_previous_year_txt <- date_formatter(date_previous_year$Date)
 
     # Output results
     html_output <-
       div(
         p("Number of people waiting for an initial decision, as of", date_recent_quarter_txt, ": ", scales::comma(backlog_total)),
         p("Change in people waiting for initial decisions - from", date_previous_quarter_txt, "to", date_recent_quarter_txt, ": ", scales::percent(backlog_change, accuracy = 0.1)),
+        p("% change in people waiting for initial decisions, compared to same period last year - between", date_previous_year_txt, "and", date_recent_quarter_txt, ": ", scales::percent(backlog_change_year, accuracy = 0.1)),
         p("Top five nationalities waiting for initial decisions, as of", date_recent_quarter_txt, ": ", backlog_nationality)
       )
 
