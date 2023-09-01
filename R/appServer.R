@@ -150,12 +150,12 @@ server <- function(input, output, session) {
 
     channel_data <-
       div(
-        p("Number of small boat arrivals, year to date:", scales::comma(small_boat_arrivals_ytd)),
-        p("Number of small boat arrivals over last 12 months (year ending", date_recent_quarter_txt, "): ", scales::comma(small_boat_arrivals_last_12_months)),
-        p("Number of small boat arrivals over the 12 months prior (year ending", date_prior_year_txt, "): ", scales::comma(small_boat_arrivals_year_before)),
-        p("% change in number of people crossing (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): ", percent_change),
-        p("Top five nationalities arriving via small boats, year to date:", nationalities_last_quarter),
-        p("Top five nationalities arriving via small boats over the last 12 months (year ending", date_recent_quarter_txt, "): ", nationalities_last_year)
+        p(tags$b("Number of small boat arrivals, year to date:"), scales::comma(small_boat_arrivals_ytd)),
+        p(tags$b("Number of small boat arrivals over last 12 months (year ending", date_recent_quarter_txt, "): "), scales::comma(small_boat_arrivals_last_12_months)),
+        p(tags$b("Number of small boat arrivals over the 12 months prior (year ending", date_prior_year_txt, "): "), scales::comma(small_boat_arrivals_year_before)),
+        p(tags$b("% change in number of people crossing (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): "), percent_change),
+        p(tags$b("Top five nationalities arriving via small boats, year to date:"), nationalities_last_quarter),
+        p(tags$b("Top five nationalities arriving via small boats over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_last_year)
       )
 
     return(channel_data)
@@ -296,21 +296,21 @@ server <- function(input, output, session) {
 
     html_output <-
       div(
-        p("Number of initial decisions made over last quarter, as of", date_recent_quarter_txt, ": ", scales::comma(recent_quarter_decisions)),
-        p("Initial grant rate during last quarter, as of", date_recent_quarter_txt, ": ", scales::percent(recent_quarter_grant_rate, accuracy = 0.1)),
-        p("Percentage of refusals (compared to total initial decisions), as of", date_recent_quarter_txt, ": ", scales::percent(recent_quarter_refusals, accuracy = 0.1)),
+        p(tags$b("Number of initial decisions made over last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_decisions)),
+        p(tags$b("Initial grant rate during last quarter, as of", date_recent_quarter_txt, ": "), scales::percent(recent_quarter_grant_rate, accuracy = 0.1)),
+        p(tags$b("Percentage of refusals (compared to total initial decisions), as of", date_recent_quarter_txt, ": "), scales::percent(recent_quarter_refusals, accuracy = 0.1)),
         p(),
-        p("Number of initial decisions made over the last 12 months (year ending", date_recent_quarter_txt, "): ", scales::comma(recent_year_decisions)),
-        p("Initial grant rate over the last 12 months (year ending", date_recent_quarter_txt, "): ", scales::percent(recent_year_grant_rate, accuracy = 0.1)),
-        p("Percentage of refusals over the last 12 months (year ending", date_recent_quarter_txt, "): ", scales::percent(recent_year_refusals, accuracy = 0.1)),
+        p(tags$b("Number of initial decisions made over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::comma(recent_year_decisions)),
+        p(tags$b("Initial grant rate over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::percent(recent_year_grant_rate, accuracy = 0.1)),
+        p(tags$b("Percentage of refusals over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::percent(recent_year_refusals, accuracy = 0.1)),
         p(),
-        p("Number of withdrawals in last quarter, as of", date_recent_quarter_txt, ": ", scales::comma(recent_quarter$Withdrawn)),
-        p("Number of withdrawals over the last 12 months (year ending", date_recent_quarter_txt, "): ", scales::comma(recent_year$Withdrawn)),
-        p("Number of withdrawals in the prior year (year ending", date_prior_year_txt, "): ", scales::comma(prior_year$Withdrawn)),
-        p("Percentage change in withdrawals (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): ", scales::percent(withdrawals_change, accuracy = 0.1)),
+        p(tags$b("Number of withdrawals in last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter$Withdrawn)),
+        p(tags$b("Number of withdrawals over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::comma(recent_year$Withdrawn)),
+        p(tags$b("Number of withdrawals in the prior year (year ending", date_prior_year_txt, "): "), scales::comma(prior_year$Withdrawn)),
+        p(tags$b("Percentage change in withdrawals (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): "), scales::percent(withdrawals_change, accuracy = 0.1)),
         p(),
-        p("Top five nationalities receiving initial decisions (grants and refusals) over the last 12 months (year ending", date_recent_quarter_txt, "): ", nationalities_last_year),
-        p("Top five nationalities granted status over the last 12 months (year ending", date_recent_quarter_txt, "): ", nationalities_granted_last_year),
+        p(tags$b("Top five nationalities receiving initial decisions (grants and refusals) over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_last_year),
+        p(tags$b("Top five nationalities granted status over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_granted_last_year),
         p(),
         p("Initial decisions referrs to grants and refusals for main applicants only; withdrawals do not count as decisions. Figures do not include resettlement.")
       )
@@ -403,10 +403,10 @@ server <- function(input, output, session) {
     # Output results
     html_output <-
       div(
-        p("Number of people waiting for an initial decision, as of", date_recent_quarter_txt, ": ", scales::comma(backlog_total)),
-        p("Change in people waiting for initial decisions - from", date_previous_quarter_txt, "to", date_recent_quarter_txt, ": ", scales::percent(backlog_change, accuracy = 0.1)),
-        p("% change in people waiting for initial decisions, compared to same period last year - between", date_previous_year_txt, "and", date_recent_quarter_txt, ": ", scales::percent(backlog_change_year, accuracy = 0.1)),
-        p("Top five nationalities waiting for initial decisions, as of", date_recent_quarter_txt, ": ", backlog_nationality)
+        p(tags$b("Number of people waiting for an initial decision, as of", date_recent_quarter_txt, ": "), scales::comma(backlog_total)),
+        p(tags$b("Change in people waiting for initial decisions - from", date_previous_quarter_txt, "to", date_recent_quarter_txt, ": "), scales::percent(backlog_change, accuracy = 0.1)),
+        p(tags$b("% change in people waiting for initial decisions, compared to same period last year - between", date_previous_year_txt, "and", date_recent_quarter_txt, ": "), scales::percent(backlog_change_year, accuracy = 0.1)),
+        p(tags$b("Top five nationalities waiting for initial decisions, as of", date_recent_quarter_txt, ": "), backlog_nationality)
       )
 
     return(html_output)
