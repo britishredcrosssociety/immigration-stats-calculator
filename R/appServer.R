@@ -44,24 +44,26 @@ server <- function(input, output, session) {
 
     output_data <- NULL
 
-    if (input$topicChoice == "channel") {
-      output_data <- calc_irregular_migration()
+    if (length(input$topicChoice) > 0) {
+      if (input$topicChoice == "channel") {
+        output_data <- calc_irregular_migration()
 
-    } else if (input$topicChoice == "grants") {
-      output_data <- calc_grant_rates()
+      } else if (input$topicChoice == "grants") {
+        output_data <- calc_grant_rates()
 
-    } else if (input$topicChoice == "backlog") {
-      output_data <- calc_backlog()
+      } else if (input$topicChoice == "backlog") {
+        output_data <- calc_backlog()
 
+      }
+
+      # lapply(1:ncol(output_data), function(i) {
+      #   p(paste(names(output_data)[i], output_data[,i], sep = ": "))
+      # })
+      div(
+        h2("Results"),
+        output_data
+      )
     }
-
-    # lapply(1:ncol(output_data), function(i) {
-    #   p(paste(names(output_data)[i], output_data[,i], sep = ": "))
-    # })
-    div(
-      h2("4. Results"),
-      output_data
-    )
   })
 
   # ---- Channel crossings stats ----

@@ -12,7 +12,7 @@ ui <- function() {
 
     tags$hr(),  # horizontal line for separation
 
-    h2("1. Choose a topic"),
+    h2("Choose a topic"),
     radioButtons(
       "topicChoice",
       label = NULL,
