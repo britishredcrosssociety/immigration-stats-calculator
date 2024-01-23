@@ -176,7 +176,7 @@ server <- function(input, output, session) {
 
   # ---- Grant rates stats ----
   calc_grant_rates <- reactive({
-    data_file <-  download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications, initial decisions and resettlement detailed datasets")
+    data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications, initial decisions and resettlement detailed datasets")
 
     decisions_resettlement <-
       read_excel(data_file, sheet = "Data - Asy_D02", skip = 1)
@@ -349,6 +349,11 @@ server <- function(input, output, session) {
     awaiting_decision <-
       read_excel(data_file, sheet = "Data - Asy_D03", skip = 1)
 
+    data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications, initial decisions and resettlement detailed datasets")
+
+    applications <-
+      read_excel(data_file, sheet = "Data - Asy_D01", skip = 1)
+
     # DEBUG:
     # awaiting_decision <-
     #   read_excel("C:\\Users/040026704/Downloads/asylum-applications-awaiting-decision-datasets-jun-2023.xlsx", sheet = "Data - Asy_D03", skip = 1)
@@ -364,6 +369,20 @@ server <- function(input, output, session) {
       mutate(
         `Applicant type` = if_else(`Applicant type` == "Dependant", "Dependant", "Main applicant")
       )
+
+    applications <-
+      applications |>
+      mutate(Date = zoo::as.Date(as.yearqtr(Quarter, format = "%Y Q%q"), frac = 1)) |>
+      relocate(Date) |>
+      mutate(`Applicant type` = if_else(`Applicant type` == "Dependant", "Dependant", "Main applicant")) |>
+      drop_na()
+
+    # Number of people claiming asylum in the last 12 months
+    people_claiming_asylum <-
+      applications |>
+      filter(Date >= max(Date) - dmonths(11)) |>
+      summarise(Applications = sum(Applications)) |>
+      pull(Applications)
 
     # Number of people waiting for an initial decision, as of current year-end
     backlog_total <-
@@ -428,6 +447,7 @@ server <- function(input, output, session) {
     # Output results
     html_output <-
       div(
+        p(tags$b("Number of people claiming asylum in the 12 months to", date_recent_quarter_txt, ": "), scales::comma(people_claiming_asylum)),
         p(tags$b("Number of people waiting for an initial decision, as of", date_recent_quarter_txt, ": "), scales::comma(backlog_total)),
         p(tags$b("Change in people waiting for initial decisions - from", date_previous_quarter_txt, "to", date_recent_quarter_txt, ": "), scales::percent(backlog_change, accuracy = 0.1)),
         p(tags$b("% change in people waiting for initial decisions, compared to same period last year - between", date_previous_year_txt, "and", date_recent_quarter_txt, ": "), scales::percent(backlog_change_year, accuracy = 0.1)),
