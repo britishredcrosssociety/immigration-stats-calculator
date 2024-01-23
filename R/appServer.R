@@ -203,37 +203,51 @@ server <- function(input, output, session) {
     recent_quarter <-
       decisions_resettlement |>
       filter(Date == max(Date)) |>
-      filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+      filter(`Case type` == "Asylum Case") |>
       mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
 
-      group_by(`Case outcome group`) |>
+      group_by(`Case outcome group`, `Applicant type`) |>
       summarise(Decisions = sum(Decisions)) |>
       ungroup() |>
 
       pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
       mutate(`Initial grant rate` = Grant / (Grant + Refused))
 
+    recent_quarter_people_withdrawing <- sum(recent_quarter$Withdrawn)
+
+    recent_quarter <-
+      recent_quarter |>
+      filter(`Applicant type` == "Main applicant")
+
     recent_quarter_decisions <- recent_quarter$Grant + recent_quarter$Refused
     recent_quarter_grant_rate <- recent_quarter$`Initial grant rate`
     recent_quarter_refusals <- recent_quarter$Refused / (recent_quarter$Grant + recent_quarter$Refused)
+    recent_quarter_withdrawals_proportion <- recent_quarter$Withdrawn / (recent_quarter$Grant + recent_quarter$Refused + recent_quarter$Withdrawn)
 
     # Grants, refusals, withdrawals, and grant rates over last 12 months
     recent_year <-
       decisions_resettlement |>
       filter(Date >= max(Date) - dmonths(11)) |>
-      filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+      filter(`Case type` == "Asylum Case") |>
       mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
 
-      group_by(`Case outcome group`) |>
+      group_by(`Case outcome group`, `Applicant type`) |>
       summarise(Decisions = sum(Decisions)) |>
       ungroup() |>
 
       pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
       mutate(`Initial grant rate` = Grant / (Grant + Refused))
 
+    recent_year_people_withdrawing <- sum(recent_year$Withdrawn)
+
+    recent_year <-
+      recent_year |>
+      filter(`Applicant type` == "Main applicant")
+
     recent_year_decisions <- recent_year$Grant + recent_year$Refused
     recent_year_grant_rate <- recent_year$`Initial grant rate`
     recent_year_refusals <- recent_year$Refused / (recent_year$Grant + recent_year$Refused)
+    recent_year_withdrawals_proportion <- recent_year$Withdrawn / (recent_year$Grant + recent_year$Refused + recent_year$Withdrawn)
 
     # Grants, refusals, withdrawals, and grant rates over the 12 months prior (to the most recent year)
     prior_year <-
@@ -293,22 +307,6 @@ server <- function(input, output, session) {
       distinct(Date)
     date_prior_year_txt <- date_formatter(max(date_prior_year$Date))
 
-    # grants_data <-
-    #   tibble(
-    #     `Number of initial decisions made over last quarter (not including resettlement)` = scales::comma(recent_quarter_decisions),
-    #     `Initial grant rate during last quarter` = scales::percent(recent_year_grant_rate, accuracy = 0.1),
-    #     `Percentage of refusals in most recent quarter (compared to total initial decisions)` = scales::percent(recent_quarter_refusals, accuracy = 0.1),
-    #
-    #     `Number of initial decisions made over the last 12 months (not including resettlement)` = scales::comma(recent_year_decisions),
-    #     `Initial grant rate over the last 12 months` = scales::percent(recent_year_grant_rate, accuracy = 0.1),
-    #     `Percentage of refusals over the last 12 months (compared to total initial decisions)` = scales::percent(recent_year_refusals, accuracy = 0.1),
-    #
-    #     `Number of withdrawals in last quarter` = scales::comma(recent_quarter$Withdrawn),
-    #     `Number of withdrawals over the last 12 months` = scales::comma(recent_year$Withdrawn),
-    #     `Number of withdrawals in the prior year` = scales::comma(prior_year$Withdrawn),
-    #     `Percentage change in withdrawals` = scales::percent(withdrawals_change, accuracy = 0.1)
-    #   )
-
     html_output <-
       div(
         p(tags$b("Number of initial decisions made over last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_decisions)),
@@ -318,12 +316,22 @@ server <- function(input, output, session) {
         p(tags$b("Number of initial decisions made over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::comma(recent_year_decisions)),
         p(tags$b("Initial grant rate over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::percent(recent_year_grant_rate, accuracy = 0.1)),
         p(tags$b("Percentage of refusals over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::percent(recent_year_refusals, accuracy = 0.1)),
+
+        br(),
+        h4("Withdrawals"),
+        p(tags$b("Number of claims withdrawn in last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter$Withdrawn)),
+        p(tags$b("Number of people withdrawing in last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_people_withdrawing)),
+        p(tags$b("Proportion of withdrawals, compared to total grants + refusals + withdrawals in last quarter, as of", date_recent_quarter_txt, ": "), scales::percent(recent_quarter_withdrawals_proportion, accuracy = 0.1)),
         p(),
-        p(tags$b("Number of withdrawals in last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter$Withdrawn)),
-        p(tags$b("Number of withdrawals over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::comma(recent_year$Withdrawn)),
-        p(tags$b("Number of withdrawals in the prior year (year ending", date_prior_year_txt, "): "), scales::comma(prior_year$Withdrawn)),
+        p(tags$b("Number of claims withdrawn over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::comma(recent_year$Withdrawn)),
+        p(tags$b("Number of people withdrawing over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::comma(recent_year_people_withdrawing)),
+        p(tags$b("Proportion of withdrawals, compared to total grants + refusals + withdrawals (year ending", date_recent_quarter_txt, "): "), scales::percent(recent_year_withdrawals_proportion, accuracy = 0.1)),
+        p(),
+        p(tags$b("Number of claims withdrawn in the prior year (year ending", date_prior_year_txt, "): "), scales::comma(prior_year$Withdrawn)),
         p(tags$b("Percentage change in withdrawals (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): "), scales::percent(withdrawals_change, accuracy = 0.1)),
-        p(),
+
+        br(),
+        h4("Nationalities"),
         p(tags$b("Top five nationalities receiving initial decisions (grants and refusals) over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_last_year),
         p(tags$b("Top five nationalities granted status over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_granted_last_year),
         p(),
