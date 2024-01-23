@@ -60,6 +60,9 @@ server <- function(input, output, session) {
       } else if (input$topicChoice == "sap") {
         output_data <- calc_SAP()
 
+      } else if (input$topicChoice == "support") {
+        output_data <- calc_support()
+
       }
 
       # lapply(1:ncol(output_data), function(i) {
@@ -605,6 +608,149 @@ server <- function(input, output, session) {
 
         p(),
         p("Initial decisions referrs to grants and refusals for main applicants only; withdrawals do not count as decisions. Figures do not include resettlement. SAP nationalities are: Afghanistan, Eritrea, Libya, Syria, and Yemen.")
+      )
+
+    return(html_output)
+  })
+
+  # ---- Asylum support ----
+  calc_support <- reactive({
+    data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum seekers in receipt of support detailed datasets")
+
+    support_received <-
+      read_excel(data_file, sheet = "Data - Asy_D09", skip = 1)
+
+    # Wrangling
+    support_received <-
+      support_received |>
+      rename_with(~"Date", starts_with("Date")) |>
+      filter(toupper(Date) != "END OF TABLE") |>
+      mutate(Date = dmy(Date)) |>
+      select(-starts_with("..."))
+
+    # Number of people in receipt of asylum support – total and by Section – compared with previous quarter and compared with same quarter 12 months ago
+    support_by_date_and_section <-
+      support_received |>
+      filter(Date >= max(Date) - dmonths(12)) |>
+      group_by(Date, `Support Type`) |>
+      summarise(People = sum(People)) |>
+      ungroup()
+
+    recent_quarter_support <-
+      support_by_date_and_section |>
+      filter(Date == max(Date))
+
+    recent_quarter_total <- sum(recent_quarter_support$People)
+    recent_quarter_section4 <- recent_quarter_support |> filter(`Support Type` == "Section 4") |> pull(People)
+    recent_quarter_section95 <- recent_quarter_support |> filter(`Support Type` == "Section 95") |> pull(People)
+    recent_quarter_section98 <- recent_quarter_support |> filter(`Support Type` == "Section 98") |> pull(People)
+
+    previous_quarter_support <-
+      support_by_date_and_section |>
+      filter(Date < max(Date)) |>
+      filter(Date == max(Date))
+
+    previous_quarter_total <- sum(previous_quarter_support$People)
+    previous_quarter_section4 <- previous_quarter_support |> filter(`Support Type` == "Section 4") |> pull(People)
+    previous_quarter_section95 <- previous_quarter_support |> filter(`Support Type` == "Section 95") |> pull(People)
+    previous_quarter_section98 <- previous_quarter_support |> filter(`Support Type` == "Section 98") |> pull(People)
+
+    previous_year_support <-
+      support_by_date_and_section |>
+      filter(Date == min(Date))
+
+    previous_year_total <- sum(previous_year_support$People)
+    previous_year_section4 <- previous_year_support |> filter(`Support Type` == "Section 4") |> pull(People)
+    previous_year_section95 <- previous_year_support |> filter(`Support Type` == "Section 95") |> pull(People)
+    previous_year_section98 <- previous_year_support |> filter(`Support Type` == "Section 98") |> pull(People)
+
+    # % changes
+    change_quarter_on_quarter <- (recent_quarter_total - previous_quarter_total) / previous_quarter_total
+    change_year <- (recent_quarter_total - previous_year_total) / previous_year_total
+
+    # Accommodation
+    accommodation <-
+      support_received |>
+      filter(Date >= max(Date) - dmonths(12)) |>
+      group_by(Date, `Accommodation Type`) |>
+      summarise(People = sum(People)) |>
+      ungroup()
+
+    recent_quarter_accomm <-
+      accommodation |>
+      filter(Date == max(Date))
+
+    recent_quarter_accomm_dispersed <- recent_quarter_accomm |> filter(str_detect(`Accommodation Type`, "Dispersed")) |> pull(People)
+    recent_quarter_accomm_hotels <- recent_quarter_accomm |> filter(str_detect(`Accommodation Type`, "Hotel")) |> pull(People)
+    recent_quarter_accomm_other <- recent_quarter_accomm |> filter(str_detect(`Accommodation Type`, "Contingency.*Other")) |> pull(People)
+
+    previous_quarter_accomm <-
+      accommodation |>
+      filter(Date < max(Date)) |>
+      filter(Date == max(Date))
+
+    previous_quarter_accomm_dispersed <- previous_quarter_accomm |> filter(str_detect(`Accommodation Type`, "Dispersed")) |> pull(People)
+    previous_quarter_accomm_hotels <- previous_quarter_accomm |> filter(str_detect(`Accommodation Type`, "Hotel")) |> pull(People)
+    previous_quarter_accomm_other <- previous_quarter_accomm |> filter(str_detect(`Accommodation Type`, "Contingency.*Other")) |> pull(People)
+
+    previous_year_accomm <-
+      accommodation |>
+      filter(Date == min(Date))
+
+    previous_year_accomm_dispersed <- previous_year_accomm |> filter(str_detect(`Accommodation Type`, "Dispersed")) |> pull(People)
+    previous_year_accomm_hotels <- previous_year_accomm |> filter(str_detect(`Accommodation Type`, "Hotel")) |> pull(People)
+    previous_year_accomm_other <- previous_year_accomm |> filter(str_detect(`Accommodation Type`, "Contingency.*Other")) |> pull(People)
+
+    # % change in number of people in hotels compared with previous quarter
+    change_hotels <- (recent_quarter_accomm_hotels - previous_quarter_accomm_hotels) / previous_quarter_accomm_hotels
+
+    # % change in number of people in other contingency accommodation compared with previous quarter
+    change_contingency <- (recent_quarter_accomm_other - previous_quarter_accomm_other) / previous_quarter_accomm_other
+
+    # Calculate date ranges
+    date_recent_quarter_txt <- date_formatter(max(recent_quarter_support$Date))
+    date_previous_quarter_txt <- date_formatter(max(previous_quarter_support$Date))
+    date_previous_year_txt <- date_formatter(max(previous_year_support$Date))
+
+    html_output <-
+      div(
+        p(tags$b("Number of people receiving asylum support, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_total)),
+        p(tags$b("Number of people receiving asylum support in previous quarter (", date_previous_quarter_txt, "): "), scales::comma(previous_quarter_total)),
+        p(tags$b("Number of people receiving asylum support in same quarter previous year (", date_previous_year_txt, "): "), scales::comma(previous_year_total)),
+
+        p(tags$b("% change in people receiving asylum support between ", date_previous_quarter_txt, "and", date_recent_quarter_txt, ": "), scales::percent(change_quarter_on_quarter, accuracy = 0.1)),
+        p(tags$b("% change in people receiving asylum support between ", date_previous_year_txt, "and", date_recent_quarter_txt, ": "), scales::percent(change_year, accuracy = 0.1)),
+
+        br(),
+        h4("Section 4"),
+        p(tags$b("Number of people receiving Section 4 support, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_section4)),
+        p(tags$b("Number of people receiving Section 4 support in previous quarter (", date_previous_quarter_txt, "): "), scales::comma(previous_quarter_section4)),
+        p(tags$b("Number of people receiving Section 4 support in same quarter previous year (", date_previous_year_txt, "): "), scales::comma(previous_year_section4)),
+
+        br(),
+        h4("Section 95"),
+        p(tags$b("Number of people receiving Section 95 support, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_section95)),
+        p(tags$b("Number of people receiving Section 95 support in previous quarter (", date_previous_quarter_txt, "): "), scales::comma(previous_quarter_section95)),
+        p(tags$b("Number of people receiving Section 95 support in same quarter previous year (", date_previous_year_txt, "): "), scales::comma(previous_year_section95)),
+
+        br(),
+        h4("Section 98"),
+        p(tags$b("Number of people receiving Section 98 support, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_section98)),
+        p(tags$b("Number of people receiving Section 98 support in previous quarter (", date_previous_quarter_txt, "): "), scales::comma(previous_quarter_section98)),
+        p(tags$b("Number of people receiving Section 98 support in same quarter previous year (", date_previous_year_txt, "): "), scales::comma(previous_year_section98)),
+
+        br(),
+        h4("Asylum accommodation"),
+        p(tags$b("Number of people in dispersed accommodation, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_accomm_dispersed)),
+        p(tags$b("Number of people in contingency hotels, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_accomm_hotels)),
+        p(tags$b("Number of people in other contingency accommodation, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_accomm_other)),
+        br(),
+        p(tags$b("Number of people in dispersed accommodation, as of", date_previous_year_txt, ": "), scales::comma(previous_year_accomm_dispersed)),
+        p(tags$b("Number of people in contingency hotels, as of", date_previous_year_txt, ": "), scales::comma(previous_year_accomm_hotels)),
+        p(tags$b("Number of people in other contingency accommodation, as of", date_previous_year_txt, ": "), scales::comma(previous_year_accomm_other)),
+        br(),
+        p(tags$b("% change in people in contingency hotels between", date_previous_quarter_txt, "and", date_recent_quarter_txt, ": "), scales::percent(change_hotels, accuracy = 0.1)),
+        p(tags$b("% change in people in other contingency accommodation between", date_previous_quarter_txt, "and", date_recent_quarter_txt, ": "), scales::percent(change_contingency, accuracy = 0.1))
       )
 
     return(html_output)

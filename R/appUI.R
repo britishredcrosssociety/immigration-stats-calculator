@@ -20,7 +20,8 @@ ui <- function() {
         "Channel crossings" = "channel",
         "Grant rates" = "grants",
         "Asylum backlog" = "backlog",
-        "Streamlined Asylum Processing" = "sap"
+        "Streamlined Asylum Processing" = "sap",
+        "Asylum support" = "support"
       ),
       selected = character(0),
       inline = TRUE  # Display the choices in a row
