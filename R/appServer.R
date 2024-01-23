@@ -268,6 +268,31 @@ server <- function(input, output, session) {
 
     withdrawals_change <- (recent_year$Withdrawn - prior_year$Withdrawn) / prior_year$Withdrawn
 
+    # Withdrawals by type
+    withdrawals_by_type <-
+      decisions_resettlement |>
+      filter(Date >= max(Date) - dmonths(11)) |>
+      filter(`Case outcome group` == "Withdrawn")
+
+    withdrawals_recent_quarter <-
+      withdrawals_by_type |>
+      filter(Date == max(Date)) |>
+      group_by(`Case outcome`) |>
+      summarise(Decisions = sum(Decisions)) |>
+      ungroup()
+
+    recent_quarter_withdrawals_other <- withdrawals_recent_quarter |> filter(str_detect(`Case outcome`, "Other")) |> pull(Decisions)
+    recent_quarter_withdrawals_non_sub <- withdrawals_recent_quarter |> filter(!str_detect(`Case outcome`, "Other")) |> pull(Decisions)
+
+    withdrawals_recent_year <-
+      withdrawals_by_type |>
+      group_by(`Case outcome`) |>
+      summarise(Decisions = sum(Decisions)) |>
+      ungroup()
+
+    recent_year_withdrawals_other <- withdrawals_recent_year |> filter(str_detect(`Case outcome`, "Other")) |> pull(Decisions)
+    recent_year_withdrawals_non_sub <- withdrawals_recent_year |> filter(!str_detect(`Case outcome`, "Other")) |> pull(Decisions)
+
     # Top five nationalities receiving initial decisions (grants and refusals) in last year
     nationalities_last_year <-
       decisions_resettlement |>
@@ -325,10 +350,14 @@ server <- function(input, output, session) {
         p(tags$b("Number of claims withdrawn in last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter$Withdrawn)),
         p(tags$b("Number of people withdrawing in last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_people_withdrawing)),
         p(tags$b("Proportion of withdrawals, compared to total grants + refusals + withdrawals in last quarter, as of", date_recent_quarter_txt, ": "), scales::percent(recent_quarter_withdrawals_proportion, accuracy = 0.1)),
+        p(tags$b("Number of non-substantiated withdrawals (main applicants + dependants) in last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_withdrawals_non_sub)),
+        p(tags$b("Number of other withdrawals (main applicants + dependants) in last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_withdrawals_other)),
         p(),
         p(tags$b("Number of claims withdrawn over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::comma(recent_year$Withdrawn)),
         p(tags$b("Number of people withdrawing over the last 12 months (year ending", date_recent_quarter_txt, "): "), scales::comma(recent_year_people_withdrawing)),
         p(tags$b("Proportion of withdrawals, compared to total grants + refusals + withdrawals (year ending", date_recent_quarter_txt, "): "), scales::percent(recent_year_withdrawals_proportion, accuracy = 0.1)),
+        p(tags$b("Number of non-substantiated withdrawals (main applicants + dependants) over the last 12 months (year ending", date_recent_quarter_txt, ": "), scales::comma(recent_year_withdrawals_non_sub)),
+        p(tags$b("Number of other withdrawals (main applicants + dependants) over the last 12 months (year ending", date_recent_quarter_txt, ": "), scales::comma(recent_year_withdrawals_other)),
         p(),
         p(tags$b("Number of claims withdrawn in the prior year (year ending", date_prior_year_txt, "): "), scales::comma(prior_year$Withdrawn)),
         p(tags$b("Percentage change in withdrawals (year ending", date_prior_year_txt, " to year ending ", date_recent_quarter_txt, "): "), scales::percent(withdrawals_change, accuracy = 0.1)),
