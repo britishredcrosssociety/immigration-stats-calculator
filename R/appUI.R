@@ -17,11 +17,11 @@ ui <- function() {
       "topicChoice",
       label = NULL,
       choices = list(
+        "Asylum backlog" = "backlog",
+        "Asylum support" = "support",
         "Channel crossings" = "channel",
         "Grant rates" = "grants",
-        "Asylum backlog" = "backlog",
-        "Streamlined Asylum Processing" = "sap",
-        "Asylum support" = "support"
+        "Streamlined Asylum Processing" = "sap"
       ),
       selected = character(0),
       inline = TRUE  # Display the choices in a row
