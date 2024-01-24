@@ -8,38 +8,38 @@ server <- function(input, output, session) {
     ho_file(NULL)
   })
 
-  observeEvent(input$file1, {
-    ho_file(input$file1$datapath)
-  })
+  # observeEvent(input$file1, {
+  #   ho_file(input$file1$datapath)
+  # })
 
-  output$instructions <- renderUI({
-    if(is.null(input$topicChoice)) return(NULL)
-
-    url <- NULL
-    second_instruction <- NULL
-
-    if (input$topicChoice == "channel") {
-      url <- "https://www.gov.uk/government/statistical-data-sets/irregular-migration-detailed-dataset-and-summary-tables#detailed-datasets"
-      second_instruction <- "2. Click the 'Detailed datasets' link to download the latest statistics."
-
-    } else if (input$topicChoice == "grants") {
-      url <- "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement"
-      second_instruction <- "2. In the 'Asylum applications, decisions and resettlement' section, click the 'Asylum applications, initial decisions and resettlement' link to download the most recent data."
-
-    } else if (input$topicChoice == "backlog") {
-      url <- "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement"
-      second_instruction <- "2. In the 'Asylum applications, decisions and resettlement' section, click the 'Asylum applications awaiting a decision' link to download the most recent data."
-
-    } else if (input$topicChoice == "sap") {
-      url <- "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement"
-      second_instruction <- "2. In the 'Asylum applications, decisions and resettlement' section, click the 'Asylum applications, initial decisions and resettlement' link to download the most recent data."
-    }
-
-    div(
-      p("1. Go to ", a(url, href = url, target = "_blank")),
-      p(second_instruction)
-    )
-  })
+  # output$instructions <- renderUI({
+  #   if(is.null(input$topicChoice)) return(NULL)
+  #
+  #   url <- NULL
+  #   second_instruction <- NULL
+  #
+  #   if (input$topicChoice == "channel") {
+  #     url <- "https://www.gov.uk/government/statistical-data-sets/irregular-migration-detailed-dataset-and-summary-tables#detailed-datasets"
+  #     second_instruction <- "2. Click the 'Detailed datasets' link to download the latest statistics."
+  #
+  #   } else if (input$topicChoice == "grants") {
+  #     url <- "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement"
+  #     second_instruction <- "2. In the 'Asylum applications, decisions and resettlement' section, click the 'Asylum applications, initial decisions and resettlement' link to download the most recent data."
+  #
+  #   } else if (input$topicChoice == "backlog") {
+  #     url <- "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement"
+  #     second_instruction <- "2. In the 'Asylum applications, decisions and resettlement' section, click the 'Asylum applications awaiting a decision' link to download the most recent data."
+  #
+  #   } else if (input$topicChoice == "sap") {
+  #     url <- "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement"
+  #     second_instruction <- "2. In the 'Asylum applications, decisions and resettlement' section, click the 'Asylum applications, initial decisions and resettlement' link to download the most recent data."
+  #   }
+  #
+  #   div(
+  #     p("1. Go to ", a(url, href = url, target = "_blank")),
+  #     p(second_instruction)
+  #   )
+  # })
 
   output$results <- renderUI({
     # print(input$file1)
