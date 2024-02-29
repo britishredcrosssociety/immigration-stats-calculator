@@ -26,5 +26,6 @@ Imports:
     shinycssloaders,
     stringr,
     tibble,
-    tidyr
+    tidyr,
+    zoo
 LazyData: true
