@@ -78,7 +78,7 @@ server <- function(input, output, session) {
   # ---- Channel crossings stats ----
   calc_irregular_migration <- reactive({
     tryCatch({
-      data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/irregular-migration-detailed-dataset-and-summary-tables", "Detailed datasets")
+      data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/irregular-migration-detailed-dataset-and-summary-tables", "Irregular migration to the UK detailed dataset")
 
       irregular_migration <-
         read_excel(data_file, sheet = "Data - Irr_D01", skip = 1)
