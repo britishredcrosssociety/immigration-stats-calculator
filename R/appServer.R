@@ -879,10 +879,20 @@ server <- function(input, output, session) {
       nationalities_granted_last_year <- paste(nationalities_granted_last_year, collapse = ", ")
 
       # Nationality-specific number of visas granted (letting users choose the nationalities), over the last quarter
-      # TO DO
+      nationality_specific_grants_quarter <-
+        reunion_recent_quarter |>
+        filter(Nationality %in% input$selected_nationalities) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        pull(Granted)
 
       # Nationality-specific number of visas granted (letting users choose the nationalities), over the last 12 months
-      # TO DO
+      nationality_specific_grants_year <-
+        reunion_recent_year |>
+        filter(Nationality %in% input$selected_nationalities) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        pull(Granted)
+
+      selected_nationalities_txt <- str_flatten_comma(sort(input$selected_nationalities), ", and ")
 
       # Calculate date ranges
       date_recent_quarter_txt <- date_formatter(max(reunion_recent_quarter$Date))
@@ -909,7 +919,9 @@ server <- function(input, output, session) {
           p(tags$b("% of visas granted to females vs males (over-18s only), over the most recent quarter: "), scales::percent(reunion_grants_female_adults_quarter, accuracy = 0.1)),
           p(tags$b("% of visas granted to females vs males (over-18s only), over the 12 months to", date_recent_quarter_txt, ": "), scales::percent(reunion_grants_female_adults_year, accuracy = 0.1)),
           br(),
-          p(tags$b("Top five nationalities granted visas, as of", date_recent_quarter_txt, ": "), nationalities_granted_last_year)
+          p(tags$b("Top five nationalities granted visas, as of", date_recent_quarter_txt, ": "), nationalities_granted_last_year),
+          p(tags$b("Number of visas granted to people from", selected_nationalities_txt, "during the most recent quarter:"), scales::comma(nationality_specific_grants_quarter)),
+          p(tags$b("Number of visas granted to people from", selected_nationalities_txt, "over the 12 months to", date_recent_quarter_txt, ":"), scales::comma(nationality_specific_grants_year))
         )
 
       return(html_output)

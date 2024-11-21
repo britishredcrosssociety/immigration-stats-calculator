@@ -55,6 +55,21 @@ ui <- function() {
     # )
 
     tags$br(),  # Add a bit of spacing
-    uiOutput("results") |> withSpinner(color = "#ee2a24", size = 2)
+    uiOutput("results") |> withSpinner(color = "#ee2a24", size = 2),
+
+    # Show a select box for nationalities if the user is looking at grant rates
+    # or family reunion stats
+    conditionalPanel(
+      condition = "['grants', 'reunion'].includes(input.topicChoice)",
+
+      # tags$br(),  # Add a bit of spacing
+      selectizeInput(
+        "selected_nationalities",
+        "Filter specific nationalities",
+        choices = sort(unique(asylum::applications$Nationality)),
+        selected = c("Afghanistan", "Iran", "Eritrea", "Sudan", "Syria"),
+        multiple = TRUE
+      )
+    )
   )
 }
