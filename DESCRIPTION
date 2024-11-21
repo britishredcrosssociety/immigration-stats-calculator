@@ -1,6 +1,6 @@
 Package: immigrationstatscalculator
 Title: Calculate summary statistics from Home Office data
-Version: 0.0.0.9000
+Version: 1.0.0
 Authors@R: c(
     person("Matt", "Thomas", email = "MattThomas@redcross.org.uk", role = "cre"),
     person(family = "British Red Cross", role = "cph")
@@ -14,6 +14,7 @@ RoxygenNote: 7.2.3
 Depends: 
     R (>= 2.10)
 Imports: 
+    asylum,
     dplyr,
     httr2,
     lubridate,
