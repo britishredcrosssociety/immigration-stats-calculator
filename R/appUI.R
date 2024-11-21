@@ -20,6 +20,7 @@ ui <- function() {
         "Asylum backlog" = "backlog",
         "Asylum support" = "support",
         "Channel crossings" = "channel",
+        "Family reunion" = "reunion",
         "Grant rates" = "grants"
       ),
       selected = character(0),

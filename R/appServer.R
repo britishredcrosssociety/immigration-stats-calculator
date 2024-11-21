@@ -57,8 +57,8 @@ server <- function(input, output, session) {
       } else if (input$topicChoice == "backlog") {
         output_data <- calc_backlog()
 
-      } else if (input$topicChoice == "sap") {
-        output_data <- calc_SAP()
+      } else if (input$topicChoice == "reunion") {
+        output_data <- calc_reunion()
 
       } else if (input$topicChoice == "support") {
         output_data <- calc_support()
@@ -739,6 +739,193 @@ server <- function(input, output, session) {
             p("For now, try manually examining the statistics by downloading this file from the Home Office website:"),
             tags$ul(
               tags$li(p("In the", a("Asylum support", href = "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement", target = "_blank"), "section, click the 'Asylum seekers in receipt of support detailed datasets' link."))
+            )
+          )
+        ),
+
+        footer = modalButton("OK"),
+        easyClose = TRUE
+      ))
+      return(
+        stats_error(
+          div(
+            p("For now, try manually examining the statistics by downloading this file from the Home Office website:"),
+            tags$ul(
+              tags$li(p("In the", a("Asylum support", href = "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement", target = "_blank"), "section, click the 'Asylum seekers in receipt of support detailed datasets' link."))
+            )
+          )
+        )
+      ) # exit the function here
+    })
+  })
+
+  # ---- Family reunion stats ----
+  calc_reunion <- reactive({
+    tryCatch({
+      data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Family reunion visa grants detailed datasets")
+
+      family_reunion <-
+        read_excel(data_file, sheet = "Data - Fam_D01", skip = 1)
+
+      # Wrangling
+      family_reunion <-
+        family_reunion |>
+        mutate(Date = zoo::as.Date(as.yearqtr(Quarter, format = "%Y Q%q"), frac = 1)) |>
+        mutate(Quarter = quarter(Date)) |>
+        relocate(Date) |>
+        drop_na()
+
+      # Number of visas granted in current quarter
+      reunion_total <-
+        family_reunion |>
+        filter(Date == max(Date)) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        pull(Granted)
+
+      # Split into time periods
+      reunion_recent_quarter <-
+        family_reunion |>
+        filter(Date == max(Date))
+
+      reunion_recent_year <-
+        family_reunion |>
+        filter(Date >= max(Date) - dmonths(11))
+
+      # % change in total visas granted, compared to same period last year
+      reunion_change_year <-
+        family_reunion |>
+        filter(Date >= max(Date) - dmonths(13)) |>
+        filter(Date == min(Date) | Date == max(Date)) |>
+        group_by(Date) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(delta = (Granted - lag(Granted)) / lag(Granted)) |>
+        slice_tail(n = 1) |>
+        pull(delta)
+
+      # % of visas granted to under-18 compared to everyone over the last quarter
+      reunion_grants_under18_quarter <-
+        reunion_recent_quarter |>
+        mutate(Age_group = if_else(Age == "Under 18", "Under 18", "18+")) |>
+        group_by(Age_group) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Age_group == "Under 18") |>
+        pull(prop)
+
+      # % of visas granted to under-18 compared to everyone over the last 12 months
+      reunion_grants_under18_year <-
+        reunion_recent_year |>
+        mutate(Age_group = if_else(Age == "Under 18", "Under 18", "18+")) |>
+        group_by(Age_group) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Age_group == "Under 18") |>
+        pull(prop)
+
+      # % of visas granted to females vs males (all) over the last quarter
+      reunion_grants_female_quarter <-
+        reunion_recent_quarter |>
+        group_by(Sex) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Sex == "Female") |>
+        pull(prop)
+
+      # % of visas granted to females vs males (all) over the last 12 months
+      reunion_grants_female_year <-
+        reunion_recent_year |>
+        group_by(Sex) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Sex == "Female") |>
+        pull(prop)
+
+      # % of visas granted to females vs males (over-18s only), over the last quarter
+      reunion_grants_female_adults_quarter <-
+        reunion_recent_quarter |>
+        filter(Age != "Under 18") |>
+        group_by(Sex) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Sex == "Female") |>
+        pull(prop)
+
+      # % of visas granted to females vs males (over-18s only), over the last 12 months
+      reunion_grants_female_adults_year <-
+        reunion_recent_year |>
+        filter(Age != "Under 18") |>
+        group_by(Sex) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Sex == "Female") |>
+        pull(prop)
+
+      # Top five nationalities granted visas in last year
+      nationalities_granted_last_year <-
+        reunion_recent_year |>
+        group_by(Nationality) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        slice_max(Granted, n = 5) |>
+        pull(Nationality)
+
+      nationalities_granted_last_year <- paste(nationalities_granted_last_year, collapse = ", ")
+
+      # Nationality-specific number of visas granted (letting users choose the nationalities), over the last quarter
+      # TO DO
+
+      # Nationality-specific number of visas granted (letting users choose the nationalities), over the last 12 months
+      # TO DO
+
+      # Calculate date ranges
+      date_recent_quarter_txt <- date_formatter(max(reunion_recent_quarter$Date))
+
+      date_previous_year_txt <-
+        family_reunion |>
+        filter(Date >= max(Date) - dmonths(13)) |>
+        distinct(Date) |>
+        filter(Date == min(Date)) |>
+        pull(Date) |>
+        date_formatter()
+
+
+      html_output <-
+        div(
+          p(tags$b("% change in total family reunion visas granted, compared to same period last year - between", date_previous_year_txt, "and", date_recent_quarter_txt, ": "), scales::percent(reunion_change_year, accuracy = 0.1)),
+          br(),
+          p(tags$b("% of visas granted to under-18 compared to everyone over the most recent quarter: "), scales::percent(reunion_grants_under18_quarter, accuracy = 0.1)),
+          p(tags$b("% of visas granted to under-18 compared to everyone over the 12 months to", date_recent_quarter_txt, ": "), scales::percent(reunion_grants_under18_year, accuracy = 0.1)),
+          br(),
+          p(tags$b("% of visas granted to females vs males (all) over the most recent quarter: "), scales::percent(reunion_grants_female_quarter, accuracy = 0.1)),
+          p(tags$b("% of visas granted to females vs males (all) over the 12 months to", date_recent_quarter_txt, ": "), scales::percent(reunion_grants_female_year, accuracy = 0.1)),
+          br(),
+          p(tags$b("% of visas granted to females vs males (over-18s only), over the most recent quarter: "), scales::percent(reunion_grants_female_adults_quarter, accuracy = 0.1)),
+          p(tags$b("% of visas granted to females vs males (over-18s only), over the 12 months to", date_recent_quarter_txt, ": "), scales::percent(reunion_grants_female_adults_year, accuracy = 0.1)),
+          br(),
+          p(tags$b("Top five nationalities granted visas, as of", date_recent_quarter_txt, ": "), nationalities_granted_last_year)
+        )
+
+      return(html_output)
+    },
+
+    error = function(e) {
+      message(conditionMessage(e))
+
+      showModal(modalDialog(
+        title = "Error fetching statistics",
+
+        stats_error(
+          div(
+            p("For now, try manually examining the statistics by downloading this file from the Home Office website:"),
+            tags$ul(
+              tags$li(p("In the", a("Family reunion", href = "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement", target = "_blank"), "section, click the 'Family reunion visa grants detailed datasets' link."))
             )
           )
         ),
