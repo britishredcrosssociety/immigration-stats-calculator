@@ -357,6 +357,40 @@ server <- function(input, output, session) {
 
       nationalities_granted_last_year <- paste(nationalities_granted_last_year, collapse = ", ")
 
+      # Nationality-specific grant rates (letting users choose the nationalities), over the last quarter
+      nationality_specific_grants_quarter <-
+        decisions_resettlement |>
+        filter(Date == max(Date)) |>
+        filter(Nationality %in% input$selected_nationalities) |>
+        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
+
+        group_by(`Case outcome group`, `Applicant type`) |>
+        summarise(Decisions = sum(Decisions)) |>
+        ungroup() |>
+
+        pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
+        mutate(`Initial grant rate` = Grant / (Grant + Refused)) |>
+        pull(`Initial grant rate`)
+
+      # Nationality-specific number of visas granted (letting users choose the nationalities), over the last 12 months
+      nationality_specific_grants_year <-
+        decisions_resettlement |>
+        filter(Date >= max(Date) - dmonths(11)) |>
+        filter(Nationality %in% input$selected_nationalities) |>
+        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
+
+        group_by(`Case outcome group`, `Applicant type`) |>
+        summarise(Decisions = sum(Decisions)) |>
+        ungroup() |>
+
+        pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
+        mutate(`Initial grant rate` = Grant / (Grant + Refused)) |>
+        pull(`Initial grant rate`)
+
+      selected_nationalities_txt <- str_flatten_comma(sort(input$selected_nationalities), ", and ")
+
       # Calculate date ranges
       date_recent_quarter <- max(decisions_resettlement$Date)
       date_recent_quarter_txt <- date_formatter(date_recent_quarter)
@@ -400,6 +434,9 @@ server <- function(input, output, session) {
           h4("Nationalities"),
           p(tags$b("Top five nationalities receiving initial decisions (grants and refusals) over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_last_year),
           p(tags$b("Top five nationalities granted status over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_granted_last_year),
+          br(),
+          p(tags$b("Initial grant rate for people from", selected_nationalities_txt, "during the most recent quarter:"), scales::percent(nationality_specific_grants_quarter, accuracy = 0.1)),
+          p(tags$b("Initial grant rate for people from", selected_nationalities_txt, "over the 12 months to", date_recent_quarter_txt, ":"), scales::percent(nationality_specific_grants_year, accuracy = 0.1)),
           p(),
           p("Initial decisions referrs to grants and refusals for main applicants only; withdrawals do not count as decisions. Figures do not include resettlement.")
         )
@@ -408,6 +445,8 @@ server <- function(input, output, session) {
     },
 
     error = function(e) {
+      message(conditionMessage(e))
+
       showModal(modalDialog(
         title = "Error fetching statistics",
 
