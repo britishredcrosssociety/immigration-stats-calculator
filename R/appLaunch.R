@@ -12,6 +12,7 @@ library(zoo)
 library(httr2)
 library(rvest)
 library(xml2)
+library(asylum)
 
 appLaunch <- function() {
   shinyApp(ui, server)

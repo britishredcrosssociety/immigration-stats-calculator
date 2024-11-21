@@ -57,8 +57,8 @@ server <- function(input, output, session) {
       } else if (input$topicChoice == "backlog") {
         output_data <- calc_backlog()
 
-      } else if (input$topicChoice == "sap") {
-        output_data <- calc_SAP()
+      } else if (input$topicChoice == "reunion") {
+        output_data <- calc_reunion()
 
       } else if (input$topicChoice == "support") {
         output_data <- calc_support()
@@ -357,6 +357,40 @@ server <- function(input, output, session) {
 
       nationalities_granted_last_year <- paste(nationalities_granted_last_year, collapse = ", ")
 
+      # Nationality-specific grant rates (letting users choose the nationalities), over the last quarter
+      nationality_specific_grants_quarter <-
+        decisions_resettlement |>
+        filter(Date == max(Date)) |>
+        filter(Nationality %in% input$selected_nationalities) |>
+        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
+
+        group_by(`Case outcome group`, `Applicant type`) |>
+        summarise(Decisions = sum(Decisions)) |>
+        ungroup() |>
+
+        pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
+        mutate(`Initial grant rate` = Grant / (Grant + Refused)) |>
+        pull(`Initial grant rate`)
+
+      # Nationality-specific number of visas granted (letting users choose the nationalities), over the last 12 months
+      nationality_specific_grants_year <-
+        decisions_resettlement |>
+        filter(Date >= max(Date) - dmonths(11)) |>
+        filter(Nationality %in% input$selected_nationalities) |>
+        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
+
+        group_by(`Case outcome group`, `Applicant type`) |>
+        summarise(Decisions = sum(Decisions)) |>
+        ungroup() |>
+
+        pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
+        mutate(`Initial grant rate` = Grant / (Grant + Refused)) |>
+        pull(`Initial grant rate`)
+
+      selected_nationalities_txt <- str_flatten_comma(sort(input$selected_nationalities), ", and ")
+
       # Calculate date ranges
       date_recent_quarter <- max(decisions_resettlement$Date)
       date_recent_quarter_txt <- date_formatter(date_recent_quarter)
@@ -400,6 +434,9 @@ server <- function(input, output, session) {
           h4("Nationalities"),
           p(tags$b("Top five nationalities receiving initial decisions (grants and refusals) over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_last_year),
           p(tags$b("Top five nationalities granted status over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_granted_last_year),
+          br(),
+          p(tags$b("Initial grant rate for people from", selected_nationalities_txt, "during the most recent quarter:"), scales::percent(nationality_specific_grants_quarter, accuracy = 0.1)),
+          p(tags$b("Initial grant rate for people from", selected_nationalities_txt, "over the 12 months to", date_recent_quarter_txt, ":"), scales::percent(nationality_specific_grants_year, accuracy = 0.1)),
           p(),
           p("Initial decisions referrs to grants and refusals for main applicants only; withdrawals do not count as decisions. Figures do not include resettlement.")
         )
@@ -408,6 +445,8 @@ server <- function(input, output, session) {
     },
 
     error = function(e) {
+      message(conditionMessage(e))
+
       showModal(modalDialog(
         title = "Error fetching statistics",
 
@@ -490,6 +529,7 @@ server <- function(input, output, session) {
       backlog_change <-
         awaiting_decision |>
         filter(Date >= max(Date) - dmonths(4)) |>
+        filter(str_detect(toupper(`Application stage`), "INITIAL")) |>
         group_by(Date) |>
         summarise(Backlog = sum(Applications)) |>
         ungroup() |>
@@ -502,6 +542,7 @@ server <- function(input, output, session) {
         awaiting_decision |>
         filter(Date >= max(Date) - dmonths(13)) |>
         filter(Date == min(Date) | Date == max(Date)) |>
+        filter(str_detect(toupper(`Application stage`), "INITIAL")) |>
         group_by(Date) |>
         summarise(Backlog = sum(Applications)) |>
         ungroup() |>
@@ -577,188 +618,6 @@ server <- function(input, output, session) {
             tags$ul(
               tags$li(tags$b("Asylum claims:"), p("In the", a("Asylum applications, decisions and resettlement", href = "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement", target = "_blank"), "section, click the 'Asylum applications, initial decisions and resettlement detailed datasets' link.")),
               tags$li(tags$b("Asylum backlog:"), p("In the", a("Asylum applications, decisions and resettlement", href = "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement", target = "_blank"), "section, click the 'Asylum applications awaiting a decision detailed datasets' link."))
-            )
-          )
-        )
-      ) # exit the function here
-    })
-  })
-
-  # ---- Streamlined Asylum Processing (SAP) ----
-  calc_SAP <- reactive({
-    tryCatch({
-      data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications, initial decisions and resettlement detailed datasets")
-
-      decisions_resettlement <-
-        read_excel(data_file, sheet = "Data - Asy_D02", skip = 1)
-
-      # Wrangling
-      decisions_resettlement <-
-        decisions_resettlement |>
-        mutate(Date = zoo::as.Date(as.yearqtr(Quarter, format = "%Y Q%q"), frac = 1)) |>
-        relocate(Date) |>
-
-        mutate(
-          `Applicant type` = if_else(`Applicant type` == "Dependant", "Dependant", "Main applicant"),
-          `Case outcome` = case_when(
-            `Case outcome` %in% c("Non-substantiated withdrawal", "Non-Substantiated Withdrawal") ~ "Non-Substantiated Withdrawal",
-            `Case outcome` %in% c("Other refusals", "Other Refusals") ~ "Other Refusals",
-            TRUE ~ `Case outcome`
-          )
-        ) |>
-
-        drop_na()
-
-      # - SAP nationalities -
-      sap_decisions <-
-        decisions_resettlement |>
-        filter(Nationality %in% c("Afghanistan", "Eritrea", "Libya", "Syria", "Yemen"))
-
-      # Grants, refusals, withdrawals, and grant rates for most recent quarter
-      sap_recent_quarter <-
-        sap_decisions |>
-        filter(Date == max(Date)) |>
-        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
-        mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
-
-        group_by(`Case outcome group`) |>
-        summarise(Decisions = sum(Decisions)) |>
-        ungroup() |>
-
-        pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
-        mutate(`Initial grant rate` = Grant / (Grant + Refused))
-
-      sap_recent_quarter_decisions <- sap_recent_quarter$Grant + sap_recent_quarter$Refused
-      sap_recent_quarter_grant_rate <- sap_recent_quarter$`Initial grant rate`
-      sap_recent_quarter_refusals <- sap_recent_quarter$Refused / (sap_recent_quarter$Grant + sap_recent_quarter$Refused)
-
-      # Grants, refusals, withdrawals, and grant rates since end of March 2023
-      sap_recent_year <-
-        sap_decisions |>
-        filter(Date > ymd("2023-03-31")) |>
-        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
-        mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
-
-        group_by(`Case outcome group`) |>
-        summarise(Decisions = sum(Decisions)) |>
-        ungroup() |>
-
-        pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
-        mutate(`Initial grant rate` = Grant / (Grant + Refused))
-
-      sap_recent_year_decisions <- sap_recent_year$Grant + sap_recent_year$Refused
-      sap_recent_year_grant_rate <- sap_recent_year$`Initial grant rate`
-      sap_recent_year_refusals <- sap_recent_year$Refused / (sap_recent_year$Grant + sap_recent_year$Refused)
-
-      # - Iran and Iraq -
-      iran_iraq_decisions <-
-        decisions_resettlement |>
-        filter(Nationality %in% c("Iran", "Iraq"))
-
-      # Grants, refusals, withdrawals, and grant rates for most recent quarter
-      iran_iraq_recent_quarter <-
-        iran_iraq_decisions |>
-        filter(Date == max(Date)) |>
-        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
-        mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
-
-        group_by(`Case outcome group`) |>
-        summarise(Decisions = sum(Decisions)) |>
-        ungroup() |>
-
-        pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
-        mutate(`Initial grant rate` = Grant / (Grant + Refused))
-
-      iran_iraq_recent_quarter_decisions <- iran_iraq_recent_quarter$Grant + iran_iraq_recent_quarter$Refused
-      iran_iraq_recent_quarter_grant_rate <- iran_iraq_recent_quarter$`Initial grant rate`
-      iran_iraq_recent_quarter_refusals <- iran_iraq_recent_quarter$Refused / (iran_iraq_recent_quarter$Grant + iran_iraq_recent_quarter$Refused)
-
-      # Grants, refusals, withdrawals, and grant rates since Q3 2023
-      # TODO: Uncomment these lines when newest stats are published
-      # iran_iraq_recent_year <-
-      #   iran_iraq_decisions |>
-      #   filter(Date > ymd("2023-09-30")) |>
-      #   filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
-      #   mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
-      #
-      #   group_by(`Case outcome group`) |>
-      #   summarise(Decisions = sum(Decisions)) |>
-      #   ungroup() |>
-      #
-      #   pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
-      #   mutate(`Initial grant rate` = Grant / (Grant + Refused))
-      #
-      # iran_iraq_recent_year_decisions <- iran_iraq_recent_year$Grant + iran_iraq_recent_year$Refused
-      # iran_iraq_recent_year_grant_rate <- iran_iraq_recent_year$`Initial grant rate`
-      # iran_iraq_recent_year_refusals <- iran_iraq_recent_year$Refused / (iran_iraq_recent_year$Grant + iran_iraq_recent_year$Refused)
-
-      # Calculate date ranges
-      date_recent_quarter <- max(sap_decisions$Date)
-      date_recent_quarter_txt <- date_formatter(date_recent_quarter)
-
-      html_output <-
-        div(
-          h4("People from Streamlined Asylum Process (SAP) nationalities: most recent quarter"),
-          p(tags$b("Number of initial decisions (grants and refusals) for main applicant adults from SAP nationalities made over last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(sap_recent_quarter_decisions)),
-          p(tags$b("Number of grants for main applicant adults from SAP nationalities made over last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(sap_recent_quarter$Grant)),
-          p(tags$b("Number of refusals for main applicant adults from SAP nationalities made over last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(sap_recent_quarter$Refused)),
-          p(tags$b("Number of withdrawals for main applicant adults from SAP nationalities made over last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(sap_recent_quarter$Withdrawn)),
-          p(tags$b("Initial grant rate for main applicant adults from SAP nationalities during last quarter, as of", date_recent_quarter_txt, ": "), scales::percent(sap_recent_quarter_grant_rate, accuracy = 0.1)),
-
-          br(),
-          h4("People from Streamlined Asylum Process (SAP) nationalities: since March 2023"),
-          p(tags$b("Number of initial decisions (grants and refusals) for main applicant adults from SAP nationalities since end of March 2023"), scales::comma(sap_recent_year_decisions)),
-          p(tags$b("Number of grants for main applicant adults from SAP nationalities since end of March 2023"), scales::comma(sap_recent_year$Grant)),
-          p(tags$b("Number of refusals for main applicant adults from SAP nationalities since end of March 2023"), scales::comma(sap_recent_year$Refused)),
-          p(tags$b("Number of withdrawals for main applicant adults from SAP nationalities since end of March 2023"), scales::comma(sap_recent_year$Withdrawn)),
-          p(tags$b("Initial grant rate for main applicant adults from SAP nationalities since end of March 2023"), scales::percent(sap_recent_year_grant_rate, accuracy = 0.1)),
-          p(),
-
-          br(),
-          h4("People from Iran and Iraq: most recent quarter"),
-          p(tags$b("Number of initial decisions (grants and refusals) for main applicant adults from Iran and Iraq made over last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(iran_iraq_recent_quarter_decisions)),
-          p(tags$b("Number of grants for main applicant adults from Iran and Iraq made over last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(iran_iraq_recent_quarter$Grant)),
-          p(tags$b("Number of refusals for main applicant adults from Iran and Iraq made over last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(iran_iraq_recent_quarter$Refused)),
-          p(tags$b("Number of withdrawals for main applicant adults from Iran and Iraq made over last quarter, as of", date_recent_quarter_txt, ": "), scales::comma(iran_iraq_recent_quarter$Withdrawn)),
-          p(tags$b("Initial grant rate for main applicant adults from Iran and Iraq during last quarter, as of", date_recent_quarter_txt, ": "), scales::percent(iran_iraq_recent_quarter_grant_rate, accuracy = 0.1)),
-
-          # br(),
-          # h4("People from Iran and Iraq: since Q3 (September) 2023"),
-          # p(tags$b("Number of initial decisions (grants and refusals) for main applicant adults from Iran and Iraq since Q3 2023"), scales::comma(iran_iraq_recent_year_decisions)),
-          # p(tags$b("Number of grants for main applicant adults from Iran and Iraq since Q3 2023"), scales::comma(iran_iraq_recent_year$Grant)),
-          # p(tags$b("Number of refusals for main applicant adults from Iran and Iraq since Q3 2023"), scales::comma(iran_iraq_recent_year$Refused)),
-          # p(tags$b("Number of withdrawals for main applicant adults from Iran and Iraq since Q3 2023"), scales::comma(iran_iraq_recent_year$Withdrawn)),
-          # p(tags$b("Initial grant rate for main applicant adults from Iran and Iraq since Q3 2023"), scales::percent(iran_iraq_recent_year_grant_rate, accuracy = 0.1)),
-
-          p(),
-          p("Initial decisions referrs to grants and refusals for main applicants only; withdrawals do not count as decisions. Figures do not include resettlement. SAP nationalities are: Afghanistan, Eritrea, Libya, Syria, and Yemen.")
-        )
-
-      return(html_output)
-    },
-
-    error = function(e) {
-      showModal(modalDialog(
-        title = "Error fetching statistics",
-
-        stats_error(
-          div(
-            p("For now, try manually examining the statistics by downloading this file from the Home Office website:"),
-            tags$ul(
-              tags$li(p("In the", a("Asylum applications, decisions and resettlement", href = "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement", target = "_blank"), "section, click the 'Asylum applications, initial decisions and resettlement detailed datasets' link."))
-            )
-          )
-        ),
-
-        footer = modalButton("OK"),
-        easyClose = TRUE
-      ))
-      return(
-        stats_error(
-          div(
-            p("For now, try manually examining the statistics by downloading this file from the Home Office website:"),
-            tags$ul(
-              tags$li(p("In the", a("Asylum applications, decisions and resettlement", href = "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement", target = "_blank"), "section, click the 'Asylum applications, initial decisions and resettlement detailed datasets' link."))
             )
           )
         )
@@ -919,6 +778,205 @@ server <- function(input, output, session) {
             p("For now, try manually examining the statistics by downloading this file from the Home Office website:"),
             tags$ul(
               tags$li(p("In the", a("Asylum support", href = "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement", target = "_blank"), "section, click the 'Asylum seekers in receipt of support detailed datasets' link."))
+            )
+          )
+        ),
+
+        footer = modalButton("OK"),
+        easyClose = TRUE
+      ))
+      return(
+        stats_error(
+          div(
+            p("For now, try manually examining the statistics by downloading this file from the Home Office website:"),
+            tags$ul(
+              tags$li(p("In the", a("Asylum support", href = "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement", target = "_blank"), "section, click the 'Asylum seekers in receipt of support detailed datasets' link."))
+            )
+          )
+        )
+      ) # exit the function here
+    })
+  })
+
+  # ---- Family reunion stats ----
+  calc_reunion <- reactive({
+    tryCatch({
+      data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Family reunion visa grants detailed datasets")
+
+      family_reunion <-
+        read_excel(data_file, sheet = "Data - Fam_D01", skip = 1)
+
+      # Wrangling
+      family_reunion <-
+        family_reunion |>
+        mutate(Date = zoo::as.Date(as.yearqtr(Quarter, format = "%Y Q%q"), frac = 1)) |>
+        mutate(Quarter = quarter(Date)) |>
+        relocate(Date) |>
+        drop_na()
+
+      # Number of visas granted in current quarter
+      reunion_total <-
+        family_reunion |>
+        filter(Date == max(Date)) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        pull(Granted)
+
+      # Split into time periods
+      reunion_recent_quarter <-
+        family_reunion |>
+        filter(Date == max(Date))
+
+      reunion_recent_year <-
+        family_reunion |>
+        filter(Date >= max(Date) - dmonths(11))
+
+      # % change in total visas granted, compared to same period last year
+      reunion_change_year <-
+        family_reunion |>
+        filter(Date >= max(Date) - dmonths(13)) |>
+        filter(Date == min(Date) | Date == max(Date)) |>
+        group_by(Date) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(delta = (Granted - lag(Granted)) / lag(Granted)) |>
+        slice_tail(n = 1) |>
+        pull(delta)
+
+      # % of visas granted to under-18 compared to everyone over the last quarter
+      reunion_grants_under18_quarter <-
+        reunion_recent_quarter |>
+        mutate(Age_group = if_else(Age == "Under 18", "Under 18", "18+")) |>
+        group_by(Age_group) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Age_group == "Under 18") |>
+        pull(prop)
+
+      # % of visas granted to under-18 compared to everyone over the last 12 months
+      reunion_grants_under18_year <-
+        reunion_recent_year |>
+        mutate(Age_group = if_else(Age == "Under 18", "Under 18", "18+")) |>
+        group_by(Age_group) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Age_group == "Under 18") |>
+        pull(prop)
+
+      # % of visas granted to females vs males (all) over the last quarter
+      reunion_grants_female_quarter <-
+        reunion_recent_quarter |>
+        group_by(Sex) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Sex == "Female") |>
+        pull(prop)
+
+      # % of visas granted to females vs males (all) over the last 12 months
+      reunion_grants_female_year <-
+        reunion_recent_year |>
+        group_by(Sex) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Sex == "Female") |>
+        pull(prop)
+
+      # % of visas granted to females vs males (over-18s only), over the last quarter
+      reunion_grants_female_adults_quarter <-
+        reunion_recent_quarter |>
+        filter(Age != "Under 18") |>
+        group_by(Sex) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Sex == "Female") |>
+        pull(prop)
+
+      # % of visas granted to females vs males (over-18s only), over the last 12 months
+      reunion_grants_female_adults_year <-
+        reunion_recent_year |>
+        filter(Age != "Under 18") |>
+        group_by(Sex) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        mutate(prop = Granted / sum(Granted)) |>
+        filter(Sex == "Female") |>
+        pull(prop)
+
+      # Top five nationalities granted visas in last year
+      nationalities_granted_last_year <-
+        reunion_recent_year |>
+        group_by(Nationality) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        ungroup() |>
+        slice_max(Granted, n = 5) |>
+        pull(Nationality)
+
+      nationalities_granted_last_year <- str_flatten_comma(sort(nationalities_granted_last_year), ", and ")
+
+      # Nationality-specific number of visas granted (letting users choose the nationalities), over the last quarter
+      nationality_specific_grants_quarter <-
+        reunion_recent_quarter |>
+        filter(Nationality %in% input$selected_nationalities) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        pull(Granted)
+
+      # Nationality-specific number of visas granted (letting users choose the nationalities), over the last 12 months
+      nationality_specific_grants_year <-
+        reunion_recent_year |>
+        filter(Nationality %in% input$selected_nationalities) |>
+        summarise(Granted = sum(`Visas granted`)) |>
+        pull(Granted)
+
+      selected_nationalities_txt <- str_flatten_comma(sort(input$selected_nationalities), ", and ")
+
+      # Calculate date ranges
+      date_recent_quarter_txt <- date_formatter(max(reunion_recent_quarter$Date))
+
+      date_previous_year_txt <-
+        family_reunion |>
+        filter(Date >= max(Date) - dmonths(13)) |>
+        distinct(Date) |>
+        filter(Date == min(Date)) |>
+        pull(Date) |>
+        date_formatter()
+
+
+      html_output <-
+        div(
+          p(tags$b("% change in total family reunion visas granted, compared to same period last year - between", date_previous_year_txt, "and", date_recent_quarter_txt, ": "), scales::percent(reunion_change_year, accuracy = 0.1)),
+          br(),
+          p(tags$b("% of visas granted to under-18 compared to everyone over the most recent quarter: "), scales::percent(reunion_grants_under18_quarter, accuracy = 0.1)),
+          p(tags$b("% of visas granted to under-18 compared to everyone over the 12 months to", date_recent_quarter_txt, ": "), scales::percent(reunion_grants_under18_year, accuracy = 0.1)),
+          br(),
+          p(tags$b("% of visas granted to females vs males (all) over the most recent quarter: "), scales::percent(reunion_grants_female_quarter, accuracy = 0.1)),
+          p(tags$b("% of visas granted to females vs males (all) over the 12 months to", date_recent_quarter_txt, ": "), scales::percent(reunion_grants_female_year, accuracy = 0.1)),
+          br(),
+          p(tags$b("% of visas granted to females vs males (over-18s only), over the most recent quarter: "), scales::percent(reunion_grants_female_adults_quarter, accuracy = 0.1)),
+          p(tags$b("% of visas granted to females vs males (over-18s only), over the 12 months to", date_recent_quarter_txt, ": "), scales::percent(reunion_grants_female_adults_year, accuracy = 0.1)),
+          br(),
+          p(tags$b("Top five nationalities granted visas, as of", date_recent_quarter_txt, ": "), nationalities_granted_last_year),
+          p(tags$b("Number of visas granted to people from", selected_nationalities_txt, "during the most recent quarter:"), scales::comma(nationality_specific_grants_quarter)),
+          p(tags$b("Number of visas granted to people from", selected_nationalities_txt, "over the 12 months to", date_recent_quarter_txt, ":"), scales::comma(nationality_specific_grants_year))
+        )
+
+      return(html_output)
+    },
+
+    error = function(e) {
+      message(conditionMessage(e))
+
+      showModal(modalDialog(
+        title = "Error fetching statistics",
+
+        stats_error(
+          div(
+            p("For now, try manually examining the statistics by downloading this file from the Home Office website:"),
+            tags$ul(
+              tags$li(p("In the", a("Family reunion", href = "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables#asylum-and-resettlement", target = "_blank"), "section, click the 'Family reunion visa grants detailed datasets' link."))
             )
           )
         ),
