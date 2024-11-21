@@ -28,5 +28,6 @@ Imports:
     stringr,
     tibble,
     tidyr,
+    xml2,
     zoo
 LazyData: true
