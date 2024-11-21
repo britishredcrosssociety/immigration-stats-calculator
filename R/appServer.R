@@ -1,5 +1,8 @@
 options(shiny.maxRequestSize=30*1024^2)
 
+nationalities <- read_csv("https://humaniverse.r-universe.dev/asylum/data/applications/csv")
+nationalities <- sort(unique(nationalities$Nationality))
+
 server <- function(input, output, session) {
 
   ho_file <- reactiveVal()

@@ -66,7 +66,7 @@ ui <- function() {
       selectizeInput(
         "selected_nationalities",
         "Filter specific nationalities",
-        choices = sort(unique(asylum::applications$Nationality)),
+        choices = nationalities,
         selected = c("Afghanistan", "Iran", "Eritrea", "Sudan", "Syria"),
         multiple = TRUE
       )
