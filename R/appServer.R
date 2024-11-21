@@ -876,7 +876,7 @@ server <- function(input, output, session) {
         slice_max(Granted, n = 5) |>
         pull(Nationality)
 
-      nationalities_granted_last_year <- paste(nationalities_granted_last_year, collapse = ", ")
+      nationalities_granted_last_year <- str_flatten_comma(sort(nationalities_granted_last_year), ", and ")
 
       # Nationality-specific number of visas granted (letting users choose the nationalities), over the last quarter
       nationality_specific_grants_quarter <-
