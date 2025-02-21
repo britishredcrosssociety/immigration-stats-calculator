@@ -70,6 +70,13 @@ ui <- function() {
         selected = c("Afghanistan", "Iran", "Eritrea", "Sudan", "Syria"),
         multiple = TRUE
       )
+    ),
+
+    # Grant rate trends graph
+    conditionalPanel(
+      condition = "input.topicChoice === 'grants'",
+
+      plotlyOutput("grant_trends")
     )
   )
 }

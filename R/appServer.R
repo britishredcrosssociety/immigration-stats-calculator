@@ -210,30 +210,59 @@ server <- function(input, output, session) {
   })
 
   # ---- Grant rates stats ----
+  selected_nationalities_txt <- reactive({
+    str_flatten_comma(sort(input$selected_nationalities), ", and ")
+  })
+
+  # Cache grant rates stats so the data doesn't need to be re-downloaded every time
+  # the user changes the nationality filter
+  decisions_resettlement_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications, initial decisions and resettlement detailed datasets")
+
+  decisions_resettlement <-
+    read_excel(decisions_resettlement_file, sheet = "Data - Asy_D02", skip = 1)
+
+  # Wrangling
+  decisions_resettlement <-
+    decisions_resettlement |>
+    mutate(Date = zoo::as.Date(as.yearqtr(Quarter, format = "%Y Q%q"), frac = 1)) |>
+    relocate(Date) |>
+
+    mutate(
+      `Applicant type` = if_else(`Applicant type` == "Dependant", "Dependant", "Main applicant"),
+      `Case outcome` = case_when(
+        `Case outcome` %in% c("Non-substantiated withdrawal", "Non-Substantiated Withdrawal") ~ "Non-Substantiated Withdrawal",
+        `Case outcome` %in% c("Other refusals", "Other Refusals") ~ "Other Refusals",
+        `Case outcome` %in% c("Other Withdrawal", "Other withdrawal") ~ "Other Withdrawal",
+        TRUE ~ `Case outcome`
+      )
+    ) |>
+
+    drop_na()
+
   calc_grant_rates <- reactive({
     tryCatch({
-      data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications, initial decisions and resettlement detailed datasets")
-
-      decisions_resettlement <-
-        read_excel(data_file, sheet = "Data - Asy_D02", skip = 1)
-
-      # Wrangling
-      decisions_resettlement <-
-        decisions_resettlement |>
-        mutate(Date = zoo::as.Date(as.yearqtr(Quarter, format = "%Y Q%q"), frac = 1)) |>
-        relocate(Date) |>
-
-        mutate(
-          `Applicant type` = if_else(`Applicant type` == "Dependant", "Dependant", "Main applicant"),
-          `Case outcome` = case_when(
-            `Case outcome` %in% c("Non-substantiated withdrawal", "Non-Substantiated Withdrawal") ~ "Non-Substantiated Withdrawal",
-            `Case outcome` %in% c("Other refusals", "Other Refusals") ~ "Other Refusals",
-            `Case outcome` %in% c("Other Withdrawal", "Other withdrawal") ~ "Other Withdrawal",
-            TRUE ~ `Case outcome`
-          )
-        ) |>
-
-        drop_na()
+      # data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications, initial decisions and resettlement detailed datasets")
+      #
+      # decisions_resettlement <-
+      #   read_excel(data_file, sheet = "Data - Asy_D02", skip = 1)
+      #
+      # # Wrangling
+      # decisions_resettlement <-
+      #   decisions_resettlement |>
+      #   mutate(Date = zoo::as.Date(as.yearqtr(Quarter, format = "%Y Q%q"), frac = 1)) |>
+      #   relocate(Date) |>
+      #
+      #   mutate(
+      #     `Applicant type` = if_else(`Applicant type` == "Dependant", "Dependant", "Main applicant"),
+      #     `Case outcome` = case_when(
+      #       `Case outcome` %in% c("Non-substantiated withdrawal", "Non-Substantiated Withdrawal") ~ "Non-Substantiated Withdrawal",
+      #       `Case outcome` %in% c("Other refusals", "Other Refusals") ~ "Other Refusals",
+      #       `Case outcome` %in% c("Other Withdrawal", "Other withdrawal") ~ "Other Withdrawal",
+      #       TRUE ~ `Case outcome`
+      #     )
+      #   ) |>
+      #
+      #   drop_na()
 
       # Grants, refusals, withdrawals, and grant rates for most recent quarter
       recent_quarter <-
@@ -392,8 +421,6 @@ server <- function(input, output, session) {
         mutate(`Initial grant rate` = Grant / (Grant + Refused)) |>
         pull(`Initial grant rate`)
 
-      selected_nationalities_txt <- str_flatten_comma(sort(input$selected_nationalities), ", and ")
-
       # Calculate date ranges
       date_recent_quarter <- max(decisions_resettlement$Date)
       date_recent_quarter_txt <- date_formatter(date_recent_quarter)
@@ -438,8 +465,8 @@ server <- function(input, output, session) {
           p(tags$b("Top five nationalities receiving initial decisions (grants and refusals) over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_last_year),
           p(tags$b("Top five nationalities granted status over the last 12 months (year ending", date_recent_quarter_txt, "): "), nationalities_granted_last_year),
           br(),
-          p(tags$b("Initial grant rate for people from", selected_nationalities_txt, "during the most recent quarter:"), scales::percent(nationality_specific_grants_quarter, accuracy = 0.1)),
-          p(tags$b("Initial grant rate for people from", selected_nationalities_txt, "over the 12 months to", date_recent_quarter_txt, ":"), scales::percent(nationality_specific_grants_year, accuracy = 0.1)),
+          p(tags$b("Initial grant rate for people from", selected_nationalities_txt(), "during the most recent quarter:"), scales::percent(nationality_specific_grants_quarter, accuracy = 0.1)),
+          p(tags$b("Initial grant rate for people from", selected_nationalities_txt(), "over the 12 months to", date_recent_quarter_txt, ":"), scales::percent(nationality_specific_grants_year, accuracy = 0.1)),
           p(),
           p("Initial decisions referrs to grants and refusals for main applicants only; withdrawals do not count as decisions. Figures do not include resettlement.")
         )
@@ -476,6 +503,72 @@ server <- function(input, output, session) {
         )
       ) # exit the function here
     })
+  })
+
+  # ---- Grant rate trends ----
+  output$grant_trends <- renderPlotly({
+    # Nationality-specific grant rates (letting users choose the nationalities), over the last quarter
+    nationality_specific_grants_quarter <-
+      decisions_resettlement |>
+      filter(year(Date) > (year(today()) - 5)) |>
+      filter(Nationality %in% input$selected_nationalities) |>
+      filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+      mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
+
+      group_by(Nationality, Date, `Case outcome group`, `Applicant type`) |>
+      summarise(Decisions = sum(Decisions)) |>
+      ungroup() |>
+
+      pivot_wider(names_from = `Case outcome group`, values_from = Decisions) |>
+      mutate(`Initial grant rate` = Grant / (Grant + Refused))
+
+    plt <-
+      nationality_specific_grants_quarter |>
+      ggplot(aes(x = Date, y = `Initial grant rate`, group = Nationality)) +
+      geom_line(aes(
+        colour = Nationality,
+        text = str_glue("The grant rate at initial decision for people from {Nationality} was {scales::percent(`Initial grant rate`, accuracy = 0.1)}, as of {date_formatter(Date)}")
+      )) +
+      scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+      theme_classic() +
+      labs(
+        title = "Trends in grant rates at initial decision for selected nationalities"
+      )
+
+    ggplotly(plt, tooltip = "text") |>
+      config(
+        displayModeBar = TRUE,
+        displaylogo = FALSE,
+        modeBarButtonsToRemove = list(
+          "zoom",
+          "pan",
+          "select",
+          "zoomIn",
+          "zoomOut",
+          "autoScale",
+          "resetScale",
+          "lasso2d",
+          "hoverClosestCartesian",
+          "hoverCompareCartesian"
+        ),
+        # Download button
+        toImageButtonOptions = list(
+          height = NULL,
+          width = NULL,
+          scale = 6
+        )
+      )
+      # layout(
+      #   legend = list(
+      #     orientation = "h",
+      #     x = 0,
+      #     xanchor = "center",
+      #     # y = 1,
+      #     yanchor = "bottom",
+      #     title = NA
+      #   )
+      #   # margin = list(t = 50)  # Reduce top margin to bring plot closer to legend
+      # )
   })
 
   # ---- Backlog stats ----
