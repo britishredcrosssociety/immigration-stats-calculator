@@ -84,7 +84,7 @@ server <- function(input, output, session) {
       data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Irregular migration to the UK detailed dataset")
 
       irregular_migration <-
-        read_excel(data_file, sheet = "Data - Irr_D01", skip = 1)
+        read_excel(data_file, sheet = "Data_Irr_D01", skip = 1)
 
       # DEBUG:
       # irregular_migration <-
@@ -216,10 +216,10 @@ server <- function(input, output, session) {
 
   # Cache grant rates stats so the data doesn't need to be re-downloaded every time
   # the user changes the nationality filter
-  decisions_resettlement_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications, initial decisions and resettlement detailed datasets")
+  decisions_resettlement_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum claims and initial decisions detailed datasets")
 
   decisions_resettlement <-
-    read_excel(decisions_resettlement_file, sheet = "Data - Asy_D02", skip = 1)
+    read_excel(decisions_resettlement_file, sheet = "Data_Asy_D02", skip = 1)
 
   # Wrangling
   decisions_resettlement <-
@@ -268,7 +268,7 @@ server <- function(input, output, session) {
       recent_quarter <-
         decisions_resettlement |>
         filter(Date == max(Date)) |>
-        filter(`Case type` == "Asylum Case") |>
+        # filter(`Case type` == "Asylum Case") |>
         mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
 
         group_by(`Case outcome group`, `Applicant type`) |>
@@ -293,7 +293,7 @@ server <- function(input, output, session) {
       recent_year <-
         decisions_resettlement |>
         filter(Date >= max(Date) - dmonths(11)) |>
-        filter(`Case type` == "Asylum Case") |>
+        # filter(`Case type` == "Asylum Case") |>
         mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
 
         group_by(`Case outcome group`, `Applicant type`) |>
@@ -318,7 +318,8 @@ server <- function(input, output, session) {
       prior_year <-
         decisions_resettlement |>
         filter((Date >= max(Date) - dmonths(22)) & (Date <= max(Date) - dmonths(11))) |>
-        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        # filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        filter(`Applicant type` == "Main applicant") |>
         mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
 
         group_by(`Case outcome group`) |>
@@ -361,7 +362,8 @@ server <- function(input, output, session) {
       nationalities_last_year <-
         decisions_resettlement |>
         filter(Date >= max(Date) - dmonths(11)) |>
-        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        # filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        filter(`Applicant type` == "Main applicant") |>
         mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
         filter(`Case outcome group` %in% c("Grant", "Refused")) |>
 
@@ -377,7 +379,8 @@ server <- function(input, output, session) {
       nationalities_granted_last_year <-
         decisions_resettlement |>
         filter(Date >= max(Date) - dmonths(11)) |>
-        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        # filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        filter(`Applicant type` == "Main applicant") |>
         mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
         filter(`Case outcome group` %in% c("Grant")) |>
 
@@ -394,7 +397,8 @@ server <- function(input, output, session) {
         decisions_resettlement |>
         filter(Date == max(Date)) |>
         filter(Nationality %in% input$selected_nationalities) |>
-        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        # filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        filter(`Applicant type` == "Main applicant") |>
         mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
 
         group_by(`Case outcome group`, `Applicant type`) |>
@@ -410,7 +414,8 @@ server <- function(input, output, session) {
         decisions_resettlement |>
         filter(Date >= max(Date) - dmonths(11)) |>
         filter(Nationality %in% input$selected_nationalities) |>
-        filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        # filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+        filter(`Applicant type` == "Main applicant") |>
         mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
 
         group_by(`Case outcome group`, `Applicant type`) |>
@@ -512,7 +517,8 @@ server <- function(input, output, session) {
       decisions_resettlement |>
       filter(year(Date) > (year(today()) - 5)) |>
       filter(Nationality %in% input$selected_nationalities) |>
-      filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+      # filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
+      filter(`Applicant type` == "Main applicant") |>
       mutate(`Case outcome group` = if_else(str_detect(`Case outcome group`, "Grant"), "Grant", `Case outcome group`)) |>
 
       group_by(Nationality, Date, `Case outcome group`, `Applicant type`) |>
@@ -574,15 +580,15 @@ server <- function(input, output, session) {
   # ---- Backlog stats ----
   calc_backlog <- reactive({
     tryCatch({
-      data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications awaiting a decision detailed datasets")
+      data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum claims awaiting a decision detailed datasets")
 
       awaiting_decision <-
-        read_excel(data_file, sheet = "Data - Asy_D03", skip = 1)
+        read_excel(data_file, sheet = "Data_Asy_D03", skip = 1)
 
-      data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum applications, initial decisions and resettlement detailed datasets")
+      data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum claims and initial decisions detailed datasets")
 
       applications <-
-        read_excel(data_file, sheet = "Data - Asy_D01", skip = 1)
+        read_excel(data_file, sheet = "Data_Asy_D01", skip = 1)
 
       # DEBUG:
       # awaiting_decision <-
@@ -611,14 +617,14 @@ server <- function(input, output, session) {
       people_claiming_asylum <-
         applications |>
         filter(Date >= max(Date) - dmonths(11)) |>
-        summarise(Applications = sum(Applications)) |>
+        summarise(Applications = sum(Claims)) |>
         pull(Applications)
 
       # Number of people waiting for an initial decision, as of current year-end
       backlog_total <-
         awaiting_decision |>
         filter(Date == max(Date)) |>
-        summarise(Backlog = sum(Applications)) |>
+        summarise(Backlog = sum(Claims)) |>
         pull(Backlog)
 
       # % change in people waiting for initial decisions, quarter-on-quarter
@@ -627,7 +633,7 @@ server <- function(input, output, session) {
         filter(Date >= max(Date) - dmonths(4)) |>
         filter(str_detect(toupper(`Application stage`), "INITIAL")) |>
         group_by(Date) |>
-        summarise(Backlog = sum(Applications)) |>
+        summarise(Backlog = sum(Claims)) |>
         ungroup() |>
         mutate(delta = (Backlog - lag(Backlog)) / lag(Backlog)) |>
         slice_tail(n = 1) |>
@@ -640,7 +646,7 @@ server <- function(input, output, session) {
         filter(Date == min(Date) | Date == max(Date)) |>
         filter(str_detect(toupper(`Application stage`), "INITIAL")) |>
         group_by(Date) |>
-        summarise(Backlog = sum(Applications)) |>
+        summarise(Backlog = sum(Claims)) |>
         ungroup() |>
         mutate(delta = (Backlog - lag(Backlog)) / lag(Backlog)) |>
         slice_tail(n = 1) |>
@@ -651,7 +657,7 @@ server <- function(input, output, session) {
         awaiting_decision |>
         filter(Date == max(Date)) |>
         group_by(Nationality) |>
-        summarise(Backlog = sum(Applications)) |>
+        summarise(Backlog = sum(Claims)) |>
         ungroup() |>
         slice_max(Backlog, n = 5) |>
         pull(Nationality)
@@ -727,7 +733,7 @@ server <- function(input, output, session) {
       data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Asylum seekers in receipt of support detailed datasets")
 
       support_received <-
-        read_excel(data_file, sheet = "Data - Asy_D09", skip = 1)
+        read_excel(data_file, sheet = "Data_Asy_D09", skip = 1)
 
       # Wrangling
       support_received <-
@@ -900,7 +906,7 @@ server <- function(input, output, session) {
       data_file <- download_stats("https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables", "Family reunion visa grants detailed datasets")
 
       family_reunion <-
-        read_excel(data_file, sheet = "Data - Fam_D01", skip = 1)
+        read_excel(data_file, sheet = "Data_Fam_D01", skip = 1)
 
       # Wrangling
       family_reunion <-
