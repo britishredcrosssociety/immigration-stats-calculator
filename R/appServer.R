@@ -795,7 +795,7 @@ server <- function(input, output, session) {
         accommodation |>
         filter(Date == max(Date))
 
-      recent_quarter_accomm_dispersed <- recent_quarter_accomm |> filter(str_detect(`Accommodation Type`, "Dispersed")) |> pull(People)
+      recent_quarter_accomm_dispersed <- recent_quarter_accomm |> filter(str_detect(`Accommodation Type`, "Dispersal")) |> pull(People)
       recent_quarter_accomm_hotels <- recent_quarter_accomm |> filter(str_detect(`Accommodation Type`, "Hotel")) |> pull(People)
       recent_quarter_accomm_other <- recent_quarter_accomm |> filter(str_detect(`Accommodation Type`, "Contingency.*Other")) |> pull(People)
 
@@ -812,7 +812,7 @@ server <- function(input, output, session) {
         accommodation |>
         filter(Date == min(Date))
 
-      previous_year_accomm_dispersed <- previous_year_accomm |> filter(str_detect(`Accommodation Type`, "Dispersed")) |> pull(People)
+      previous_year_accomm_dispersed <- previous_year_accomm |> filter(str_detect(`Accommodation Type`, "Dispersal")) |> pull(People)
       previous_year_accomm_hotels <- previous_year_accomm |> filter(str_detect(`Accommodation Type`, "Hotel")) |> pull(People)
       previous_year_accomm_other <- previous_year_accomm |> filter(str_detect(`Accommodation Type`, "Contingency.*Other")) |> pull(People)
 
@@ -856,11 +856,11 @@ server <- function(input, output, session) {
 
           br(),
           h4("Asylum accommodation"),
-          p(tags$b("Number of people in dispersed accommodation, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_accomm_dispersed)),
+          p(tags$b("Number of people in dispersal accommodation, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_accomm_dispersed)),
           p(tags$b("Number of people in contingency hotels, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_accomm_hotels)),
           p(tags$b("Number of people in other contingency accommodation, as of", date_recent_quarter_txt, ": "), scales::comma(recent_quarter_accomm_other)),
           br(),
-          p(tags$b("Number of people in dispersed accommodation, as of", date_previous_year_txt, ": "), scales::comma(previous_year_accomm_dispersed)),
+          p(tags$b("Number of people in dispersal accommodation, as of", date_previous_year_txt, ": "), scales::comma(previous_year_accomm_dispersed)),
           p(tags$b("Number of people in contingency hotels, as of", date_previous_year_txt, ": "), scales::comma(previous_year_accomm_hotels)),
           p(tags$b("Number of people in other contingency accommodation, as of", date_previous_year_txt, ": "), scales::comma(previous_year_accomm_other)),
           br(),
