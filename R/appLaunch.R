@@ -12,6 +12,7 @@ library(zoo)
 library(httr2)
 library(rvest)
 library(xml2)
+library(ggplot2)
 library(plotly)
 
 appLaunch <- function() {
