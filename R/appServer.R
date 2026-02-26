@@ -80,11 +80,11 @@ server <- function(input, output, session) {
       {
         data_file <- download_stats(
           "https://www.gov.uk/government/statistical-data-sets/immigration-system-statistics-data-tables",
-          "Irregular migration to the UK detailed dataset"
+          "Illegal entry routes to the UK detailed dataset"
         )
 
         irregular_migration <-
-          read_excel(data_file, sheet = "Data_Irr_D01", skip = 1)
+          read_excel(data_file, sheet = "Data_IER_D01", skip = 1)
 
         # DEBUG:
         # irregular_migration <-
