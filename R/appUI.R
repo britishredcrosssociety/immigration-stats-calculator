@@ -5,10 +5,10 @@ ui <- function() {
 
     titlePanel("Home Office Immigration Stats Helper"),
 
-    tags$p(
-      tags$span(class = "phase-banner", "BETA"),
-      "This is work in progress. New stats will be added soon."
-    ),
+    # tags$p(
+    #   tags$span(class = "phase-banner", "BETA"),
+    #   "This is work in progress. New stats will be added soon."
+    # ),
 
     tags$hr(),  # horizontal line for separation
 
