@@ -76,7 +76,8 @@ ui <- function() {
     conditionalPanel(
       condition = "input.topicChoice === 'grants'",
 
-      plotlyOutput("grant_trends")
+      plotlyOutput("grant_trends_quarterly"),
+      plotlyOutput("grant_trends_annual")
     )
   )
 }

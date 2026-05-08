@@ -900,13 +900,14 @@ server <- function(input, output, session) {
     )
   })
 
-  # ---- Grant rate trends ----
-  output$grant_trends <- renderPlotly({
+  # ---- Grant rate trends (quarterly) ----
+  output$grant_trends_quarterly <- renderPlotly({
     # Nationality-specific grant rates (letting users choose the nationalities), over the last quarter
     nationality_specific_grants_quarter <-
       decisions_resettlement |>
       filter(year(Date) > (year(today()) - 5)) |>
       filter(Nationality %in% input$selected_nationalities) |>
+      #filter(Nationality %in% c("Afghanistan", "Syria")) |> 
       # filter(`Case type` == "Asylum Case", `Applicant type` == "Main applicant") |>
       filter(`Applicant type` == "Main applicant") |>
       mutate(
@@ -926,17 +927,110 @@ server <- function(input, output, session) {
 
     plt <-
       nationality_specific_grants_quarter |>
+      drop_na(`Initial grant rate`) |> 
+
       ggplot(aes(x = Date, y = `Initial grant rate`, group = Nationality)) +
       geom_line(aes(
         colour = Nationality,
         text = str_glue(
-          "The grant rate at initial decision for people from {Nationality} was {scales::percent(`Initial grant rate`, accuracy = 0.1)}, as of {date_formatter(Date)}"
+          "The quarterly grant rate at initial decision for people from {Nationality} was {scales::percent(`Initial grant rate`, accuracy = 0.1)}, as of {date_formatter(Date)}"
         )
       )) +
       scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
       theme_classic() +
       labs(
-        title = "Trends in grant rates at initial decision for selected nationalities"
+        title = "Quarterly grant rates at initial decision for selected nationalities"
+      )
+
+    ggplotly(plt, tooltip = "text") |>
+      config(
+        displayModeBar = TRUE,
+        displaylogo = FALSE,
+        modeBarButtonsToRemove = list(
+          "zoom",
+          "pan",
+          "select",
+          "zoomIn",
+          "zoomOut",
+          "autoScale",
+          "resetScale",
+          "lasso2d",
+          "hoverClosestCartesian",
+          "hoverCompareCartesian"
+        ),
+        # Download button
+        toImageButtonOptions = list(
+          height = NULL,
+          width = NULL,
+          scale = 6
+        )
+      )
+    # layout(
+    #   legend = list(
+    #     orientation = "h",
+    #     x = 0,
+    #     xanchor = "center",
+    #     # y = 1,
+    #     yanchor = "bottom",
+    #     title = NA
+    #   )
+    #   # margin = list(t = 50)  # Reduce top margin to bring plot closer to legend
+    # )
+  })
+
+  # ---- Grant rate trends (annual) ----
+  output$grant_trends_annual <- renderPlotly({
+    # Nationality-specific grant rates (letting users choose the nationalities), over the last year
+    decisions_by_nationality <- 
+      decisions_resettlement |>
+      filter(year(Date) > (year(today()) - 5)) |>
+      filter(Nationality %in% input$selected_nationalities) |>
+      filter(`Applicant type` == "Main applicant") |>
+      mutate(
+        `Case outcome group` = if_else(
+          str_detect(`Case outcome group`, "Grant"),
+          "Grant",
+          `Case outcome group`
+        )
+      ) |>
+   
+      group_by(Date, Nationality, `Case outcome group`) |>
+      summarise(Decisions = sum(Decisions)) |>
+      ungroup()
+
+    # Use expand_grid to fill in any instances where there were zero decisions
+    # e.g. zero grants for people from Syria in Q2 2025
+    nationality_specific_grants_annual <- 
+      expand_grid(
+        Date = unique(decisions_by_nationality$Date),
+        Nationality = unique(decisions_by_nationality$Nationality), 
+        `Case outcome group` = unique(decisions_by_nationality$`Case outcome group`)
+      ) |> 
+      
+      left_join(decisions_by_nationality) |> 
+      mutate(Decisions = replace_na(Decisions, 0)) |> 
+        
+      group_by(Nationality, `Case outcome group`) |> 
+      mutate(Decisions_rolling = rollapply(Decisions, width = 4, FUN = sum, fill = NA, align = "right")) |> 
+      ungroup() |> 
+      select(-Decisions) |> 
+
+      pivot_wider(names_from = `Case outcome group`, values_from = Decisions_rolling) |>
+      mutate(`Initial grant rate` = Grant / (Grant + Refused))
+
+    plt <-
+      nationality_specific_grants_annual |>
+      ggplot(aes(x = Date, y = `Initial grant rate`, group = Nationality)) +
+      geom_line(aes(
+        colour = Nationality,
+        text = str_glue(
+          "The annual grant rate at initial decision for people from {Nationality} was {scales::percent(`Initial grant rate`, accuracy = 0.1)}, as of {date_formatter(Date)}"
+        )
+      )) +
+      scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+      theme_classic() +
+      labs(
+        title = "Annual grant rates at initial decision for selected nationalities"
       )
 
     ggplotly(plt, tooltip = "text") |>
