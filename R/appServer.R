@@ -841,7 +841,7 @@ server <- function(input, output, session) {
             ),
             p(),
             p(
-              "Initial decisions referrs to grants and refusals for main applicants only; withdrawals do not count as decisions. Figures do not include resettlement."
+              "Initial decisions refers to grants and refusals for main applicants only; withdrawals do not count as decisions. Figures do not include resettlement."
             )
           )
 
